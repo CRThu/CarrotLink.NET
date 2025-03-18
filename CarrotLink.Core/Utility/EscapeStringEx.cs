@@ -1,11 +1,10 @@
-﻿using CarrotCommFramework.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
     /// <summary>
     /// 转义字符串拓展类

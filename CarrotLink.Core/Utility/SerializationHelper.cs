@@ -8,7 +8,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
     /// <summary>
     /// 提供 JSON 序列化和反序列化的帮助方法。
@@ -18,8 +18,7 @@ namespace CarrotCommFramework.Util
         /// <summary>
         /// 全局 JSON 序列化器选项。
         /// </summary>
-        private static readonly JsonSerializerOptions _globalOptions = new JsonSerializerOptions
-        {
+        private static readonly JsonSerializerOptions _globalOptions = new JsonSerializerOptions {
             Converters = { new JsonStringEnumConverter(), new BytesToHexStringConverter() },
             WriteIndented = true,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,

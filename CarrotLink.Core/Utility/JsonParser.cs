@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
     public class JsonParser
     {

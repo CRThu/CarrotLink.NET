@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
 
     // https://blog.csdn.net/qq_25482087/article/details/87925962
@@ -22,7 +22,7 @@ namespace CarrotCommFramework.Util
         public static bool CheckHexString(this string s)
         {
             s = s.Replace(" ", "");
-            return s.All(c => c.IsHexAscii()) && (s.Length % 2 == 0);
+            return s.All(c => c.IsHexAscii()) && s.Length % 2 == 0;
         }
 
 
@@ -96,7 +96,7 @@ namespace CarrotCommFramework.Util
         /// <returns>返回一条ASCII码</returns>
         public static string HexStringToASCII(this string hexstring)
         {
-            byte[] bt = HexStringToBinary(hexstring);
+            byte[] bt = hexstring.HexStringToBinary();
             string lin = "";
             for (int i = 0; i < bt.Length; i++)
             {

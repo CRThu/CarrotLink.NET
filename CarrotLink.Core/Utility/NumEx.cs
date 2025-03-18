@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
     public static class NumEx
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Util
+namespace CarrotLink.Core.Utility
 {
     public static class AsciiEx
     {
@@ -25,7 +25,7 @@ namespace CarrotCommFramework.Util
         /// <returns></returns>
         public static bool IsPrintableAscii(this byte c)
         {
-            return c >= (byte)0x20 && c <= (byte)0x7E;
+            return c >= 0x20 && c <= 0x7E;
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace CarrotCommFramework.Util
         /// <returns></returns>
         public static bool IsHexAscii(this char c)
         {
-            return HexCharToNum(c) != 255;
+            return c.HexCharToNum() != 255;
         }
 
         /// <summary>
@@ -45,8 +45,7 @@ namespace CarrotCommFramework.Util
         /// <returns></returns>
         public static byte HexCharToNum(this char c)
         {
-            return c switch
-            {
+            return c switch {
                 '0' => 0,
                 '1' => 1,
                 '2' => 2,
