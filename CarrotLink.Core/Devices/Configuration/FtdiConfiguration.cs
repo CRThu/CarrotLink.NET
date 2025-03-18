@@ -5,9 +5,9 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Configuration
 {
-    public class NiVisaConfiguration : DeviceConfigurationBase
+    public class FtdiConfiguration : DeviceConfigurationBase
     {
         public override void Validate()
         {

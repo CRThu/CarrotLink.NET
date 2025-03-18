@@ -12,8 +12,9 @@ using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Threading;
 using CarrotLink.Core.Discovery.Searchers;
+using CarrotLink.Core.Devices.Configuration;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Impl
 {
     public class FtdiDevice : StreamBase
     {

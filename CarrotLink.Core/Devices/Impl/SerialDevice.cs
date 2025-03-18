@@ -6,8 +6,9 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using CarrotLink.Core.Devices.Configuration;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Impl
 {
     public class SerialDevice : StreamBase
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Impl
 {
     public enum StreamStatus
     {

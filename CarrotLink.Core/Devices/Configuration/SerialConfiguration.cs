@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Configuration
 {
     /// <summary>
     /// 串口校验位类型（兼容System.IO.Ports）

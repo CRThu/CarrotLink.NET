@@ -8,8 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using NationalInstruments.VisaNS;
 using System.Diagnostics;
+using CarrotLink.Core.Devices.Configuration;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Impl
 {
     public class NiVisaDevice : StreamBase
     {

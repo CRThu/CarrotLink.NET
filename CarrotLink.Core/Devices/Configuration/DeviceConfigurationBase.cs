@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Devices
+namespace CarrotLink.Core.Devices.Configuration
 {
     public abstract class DeviceConfigurationBase
     {
