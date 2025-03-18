@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Streams
+namespace CarrotLink.Core.Devices
 {
     public enum StreamStatus
     {
@@ -20,12 +20,6 @@ namespace CarrotCommFramework.Streams
         public bool ReadAvailable { get; }
 
         public Pipe Pipe { get; }
-
-        /// <summary>
-        /// 配置解析和初始化
-        /// </summary>
-        /// <param name="params"></param>
-        public void Config(IDictionary<string, string> @params = default!);
 
         /// <summary>
         /// 打开流
@@ -77,9 +71,6 @@ namespace CarrotCommFramework.Streams
         public virtual bool ReadAvailable { get; }
 
         public Pipe Pipe { get; set; } = new();
-
-
-        public abstract void Config(IDictionary<string, string> @params = null);
 
         public abstract void Open();
 

@@ -12,10 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Devices\" />
     <Folder Include="Models\" />
     <Folder Include="Protocols\" />
     <Folder Include="Services\" />
+    <Folder Include="Utility\" />
   </ItemGroup>
 
 </Project>

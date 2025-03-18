@@ -1,6 +1,4 @@
-﻿using HighPrecisionTimer;
-using CarrotCommFramework.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.IO.Ports;
@@ -9,14 +7,10 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Streams
+namespace CarrotLink.Core.Devices
 {
-    public class SerialStream : StreamBase
+    public class SerialDevice : StreamBase
     {
-        public SerialStream()
-        {
-        }
-
         /// <summary>
         /// 流指示有数据
         /// </summary>
@@ -27,24 +21,11 @@ namespace CarrotCommFramework.Streams
         /// </summary>
         private SerialPort Driver { get; set; } = new();
 
-        /// <summary>
-        /// 配置解析和初始化
-        /// </summary>
-        /// <param name="params"></param>
-        public override void Config(IDictionary<string, string> @params = default!)
+        private readonly SerialConfiguration _config;
+
+        public SerialDevice(SerialConfiguration config)
         {
-            if (@params.Count == 0)
-                return;
-
-            Driver = new SerialPort();
-            //Driver.ReadTimeout = 10;
-            //Driver.WriteTimeout = 10;
-
-            Driver.PortName = @params.TryGetValue("port", out string? value1) ? value1 : string.Empty;
-            Driver.BaudRate = @params.TryGetValue("baudrate", out string? value2) ? Convert.ToInt32(value2) : 115200;
-            Driver.DataBits = @params.TryGetValue("databits", out string? value3) ? Convert.ToInt32(value3) : 8;
-            Driver.Parity = @params.TryGetValue("parity", out string? value4) ? SerialPortHelper.ParityString2Enum(value4) : Parity.None;
-            Driver.StopBits = @params.TryGetValue("stopbits", out string? value5) ? SerialPortHelper.StopBitsFloat2Enum(Convert.ToDouble(value5)) : StopBits.One;
+            _config = config;
         }
 
         /// <summary>
