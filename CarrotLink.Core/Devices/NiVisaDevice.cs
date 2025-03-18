@@ -1,6 +1,4 @@
-﻿using HighPrecisionTimer;
-using CarrotCommFramework.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.IO.Ports;
@@ -9,12 +7,11 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using NationalInstruments.VisaNS;
-using CarrotCommFramework.Sessions;
 using System.Diagnostics;
 
-namespace CarrotCommFramework.Streams
+namespace CarrotLink.Core.Devices
 {
-    public class NiVisaStream : StreamBase
+    public class NiVisaDevice : StreamBase
     {
 
         /// <summary>
@@ -33,19 +30,11 @@ namespace CarrotCommFramework.Streams
         /// </summary>
         protected MessageBasedSession Session { get; set; }
 
-        protected string Addr { get; set; }
+        private readonly NiVisaConfiguration _config;
 
-        public NiVisaStream()
+        public NiVisaDevice(NiVisaConfiguration config)
         {
-        }
-
-        /// <summary>
-        /// 配置解析和初始化
-        /// </summary>
-        /// <param name="params"></param>
-        public override void Config(IDictionary<string, string> @params = default!)
-        {
-            Addr = @params.TryGetValue("address", out string? value) ? value : string.Empty;
+            _config = config;
         }
 
         /// <summary>
@@ -60,7 +49,7 @@ namespace CarrotCommFramework.Streams
         /// </summary>
         public override void Open()
         {
-            var res = (MessageBasedSession)ResourceManager.GetLocalManager().Open(Addr);
+            var res = (MessageBasedSession)ResourceManager.GetLocalManager().Open("ADDR");
             if (res is MessageBasedSession)
                 Session = res;
             else

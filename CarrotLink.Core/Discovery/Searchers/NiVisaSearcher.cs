@@ -1,4 +1,6 @@
-﻿using NationalInstruments.VisaNS;
+﻿using CarrotLink.Core.Discovery.Interfaces;
+using CarrotLink.Core.Discovery.Models;
+using NationalInstruments.VisaNS;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,23 +8,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Drivers
+namespace CarrotLink.Core.Discovery.Searchers
 {
-    public class NiVisaDriver : DriverBase
+    public class NiVisaSearcher : IDeviceSearcher
     {
-        public NiVisaDriver()
+        public DeviceType SupportedType => DeviceType.Gpib;
+        public NiVisaSearcher()
         {
-            Name = "VISA";
         }
 
-        public override DeviceInfo[] FindDevices()
+        public IEnumerable<DeviceInfo> Search()
         {
             try
             {
                 string expression = "?*";
                 //string expression = "GPIB?*INSTR";
                 string[] res = ResourceManager.GetLocalManager().FindResources(expression);
-                return res.Select(d => new DeviceInfo("VISA", d, "NI-VISA DEVICE")).ToArray();
+                return res.Select(d => new DeviceInfo(/*"VISA", d, "NI-VISA DEVICE"*/)).ToArray();
             }
             catch (Exception ex)
             {

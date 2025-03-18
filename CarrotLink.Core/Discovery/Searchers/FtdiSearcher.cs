@@ -1,6 +1,4 @@
-﻿using CarrotCommFramework.Streams;
-using CarrotCommFramework.Util;
-using FTD2XX_NET;
+﻿using FTD2XX_NET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,9 +8,12 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using static FTD2XX_NET.FTDI;
-using static CarrotCommFramework.Drivers.Ftd2xxNetDecorator;
+using static CarrotLink.Core.Discovery.Searchers.Ftd2xxNetDecorator;
+using CarrotLink.Core.Utility;
+using CarrotLink.Core.Discovery.Models;
+using CarrotLink.Core.Discovery.Interfaces;
 
-namespace CarrotCommFramework.Drivers
+namespace CarrotLink.Core.Discovery.Searchers
 {
     public class Ftd2xxException : Exception
     {
@@ -40,18 +41,16 @@ namespace CarrotCommFramework.Drivers
 
     }
 
-    public class FtdiDriver : DriverBase
+    public class FtdiSearcher : IDeviceSearcher
     {
-        public static int Timeout { get; set; } = 1000;
-
-        public FtdiDriver()
+        public DeviceType SupportedType => DeviceType.Ft2232;
+        public FtdiSearcher()
         {
-            Name = "FTDI";
         }
 
-        public override DeviceInfo[] FindDevices()
+        public IEnumerable<DeviceInfo> Search()
         {
-            UInt32 ftdiDeviceCount = 0;
+            uint ftdiDeviceCount = 0;
 
             FTDI ftdi = new FTDI();
             Debug.WriteLine(Path.GetDirectoryName(GetType().Assembly.Location));
@@ -60,26 +59,26 @@ namespace CarrotCommFramework.Drivers
             // Determine the number of FTDI devices connected to the machine
             try
             {
-                Ftd2xxNetWrapper(() => ftdi.GetNumberOfDevices(ref ftdiDeviceCount), Timeout);
+                Ftd2xxNetWrapper(() => ftdi.GetNumberOfDevices(ref ftdiDeviceCount), 100);
 
                 // Allocate storage for device info list
-                FTDI.FT_DEVICE_INFO_NODE[] ftdiDeviceList = new FTDI.FT_DEVICE_INFO_NODE[ftdiDeviceCount];
+                FT_DEVICE_INFO_NODE[] ftdiDeviceList = new FT_DEVICE_INFO_NODE[ftdiDeviceCount];
 
                 // Populate our device list
-                Ftd2xxNetWrapper(() => ftdi.GetDeviceList(ftdiDeviceList), Timeout);
+                Ftd2xxNetWrapper(() => ftdi.GetDeviceList(ftdiDeviceList), 100);
 
                 for (uint i = 0; i < ftdiDeviceCount; i++)
                 {
                     Debug.WriteLine("Device Index: " + i.ToString());
-                    Debug.WriteLine("Flags: " + String.Format("{0:x}", ftdiDeviceList[i].Flags));
+                    Debug.WriteLine("Flags: " + string.Format("{0:x}", ftdiDeviceList[i].Flags));
                     Debug.WriteLine("Type: " + ftdiDeviceList[i].Type.ToString());
-                    Debug.WriteLine("ID: " + String.Format("{0:x}", ftdiDeviceList[i].ID));
-                    Debug.WriteLine("Location ID: " + String.Format("{0:x}", ftdiDeviceList[i].LocId));
+                    Debug.WriteLine("ID: " + string.Format("{0:x}", ftdiDeviceList[i].ID));
+                    Debug.WriteLine("Location ID: " + string.Format("{0:x}", ftdiDeviceList[i].LocId));
                     Debug.WriteLine("Serial Number: " + ftdiDeviceList[i].SerialNumber.ToString());
                     Debug.WriteLine("Description: " + ftdiDeviceList[i].Description.ToString());
                     Debug.WriteLine("");
                 }
-                return ftdiDeviceList.Select(dev => new DeviceInfo("FTDI", dev.SerialNumber, dev.Description))
+                return ftdiDeviceList.Select(dev => new DeviceInfo(/*"FTDI", dev.SerialNumber, dev.Description*/))
                     .ToArray();
             }
             catch (Exception ex)

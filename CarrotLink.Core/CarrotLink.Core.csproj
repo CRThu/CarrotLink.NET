@@ -18,4 +18,16 @@
     <Folder Include="Utility\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="FTD2XX_NET">
+      <HintPath>..\Library\FTD2XX\FTD2XX_NET.dll</HintPath>
+    </Reference>
+    <Reference Include="NationalInstruments.Common">
+      <HintPath>..\Library\NationalInstruments\NationalInstruments.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="NationalInstruments.VisaNS">
+      <HintPath>..\Library\NationalInstruments\NationalInstruments.VisaNS.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

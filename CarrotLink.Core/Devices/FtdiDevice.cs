@@ -1,6 +1,4 @@
-﻿using HighPrecisionTimer;
-using CarrotCommFramework.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.IO.Ports;
@@ -9,53 +7,38 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using FTD2XX_NET;
-using CarrotCommFramework.Drivers;
 using static FTD2XX_NET.FTDI;
 using System.Diagnostics;
-using DryIoc;
 using System.Net.NetworkInformation;
 using System.Threading;
+using CarrotLink.Core.Discovery.Searchers;
 
-namespace CarrotCommFramework.Streams
+namespace CarrotLink.Core.Devices
 {
-    public class FtdiStream : StreamBase
+    public class FtdiDevice : StreamBase
     {
         /// <summary>
         /// FTDI驱动包装类
         /// </summary>
         private FTDI Ftdi { get; set; }
 
-        private string SerialNumber { get; set; }
-
         private int Timeout { get; set; } = 1000;
 
         private byte FtdiMask { get; set; }
         private byte FtdiMode { get; set; }
 
-        public FtdiStream()
+        private readonly FtdiConfiguration _config;
+
+        public FtdiDevice(FtdiConfiguration config)
         {
+
+            _config = config;
         }
 
         /// <summary>
         /// 流指示有数据
         /// </summary>
-        public override bool ReadAvailable => Ftdi != null && Ftdi.IsOpen && (GetBytesToRead() != 0);
-
-        /// <summary>
-        /// 配置解析和初始化
-        /// </summary>
-        /// <param name="params"></param>
-        public override void Config(IDictionary<string, string> @params = default!)
-        {
-            if (@params.Count == 0)
-                return;
-
-            Ftdi = new FTDI();
-
-            SerialNumber = @params.TryGetValue("serialnumber", out string? value) ? value : string.Empty;
-
-            // TODO TIMEOUT/MASK/MODE
-        }
+        public override bool ReadAvailable => Ftdi != null && Ftdi.IsOpen && GetBytesToRead() != 0;
 
         /// <summary>
         /// 关闭流
@@ -70,7 +53,7 @@ namespace CarrotCommFramework.Streams
         /// </summary>
         public override void Open()
         {
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.OpenBySerialNumber(SerialNumber));
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.OpenBySerialNumber("SerialNumber"));
 
             // Set Timeout
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.SetTimeouts((uint)Timeout, (uint)Timeout));
