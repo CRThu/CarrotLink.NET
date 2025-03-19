@@ -1,11 +1,10 @@
-﻿using CarrotCommFramework.Protocols;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Loggers
+namespace CarrotLink.Core.Services.Logging
 {
     public class ConsoleLogger : LoggerBase
     {
@@ -15,9 +14,10 @@ namespace CarrotCommFramework.Loggers
         public ConsoleLogger() : base()
         {
         }
+
         public override void Log(object sender, LogEventArgs e)
         {
-            Console.WriteLine($"{GetType().FullName}: " + e.Packet.Message);
+            //Console.WriteLine($"{GetType().FullName}: " + e.Packet.Message);
         }
     }
 }
