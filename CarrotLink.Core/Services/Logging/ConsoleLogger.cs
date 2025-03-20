@@ -8,16 +8,15 @@ namespace CarrotLink.Core.Services.Logging
 {
     public class ConsoleLogger : LoggerBase
     {
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        public ConsoleLogger() : base()
+        public override void LogInfo(string message)
+        => Console.WriteLine(FormatMessage("INFO", message));
+        public override void LogError(string message, Exception? ex = null)
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(FormatMessage("ERROR", $"{message} {ex?.Message}"));
+            Console.ResetColor();
         }
-
-        public override void Log(object sender, LogEventArgs e)
-        {
-            //Console.WriteLine($"{GetType().FullName}: " + e.Packet.Message);
-        }
+        public override void LogDebug(string message)
+        => Console.WriteLine(FormatMessage("DEBUG", message));
     }
 }
