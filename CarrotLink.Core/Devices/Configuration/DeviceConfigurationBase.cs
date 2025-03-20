@@ -10,7 +10,7 @@ namespace CarrotLink.Core.Devices.Configuration
     {
         public required string DeviceId { get; set; } = "<devid>";
 
-        public int timeout { get; set; } = 5000;
+        public int Timeout { get; set; } = 5000;
 
         public virtual void Validate()
         {

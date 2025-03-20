@@ -22,12 +22,15 @@ namespace CarrotLink.Core.Devices.Impl
 
         public override async Task ConnectAsync()
         {
+            if (IsConnected) return;
+
             _serialPort = new SerialPort(
                 portName: Config.PortName,
                 baudRate: Config.BaudRate,
                 parity: (Parity)Config.Parity,
                 dataBits: Config.DataBits,
                 stopBits: (StopBits)Config.StopBits);
+
             _serialPort.Open();
             IsConnected = true;
             await Task.CompletedTask;
@@ -47,14 +50,26 @@ namespace CarrotLink.Core.Devices.Impl
         {
             if (_serialPort == null)
                 throw new InvalidOperationException("Device not connected");
-            return await _serialPort.BaseStream.ReadAsync(buffer);
+
+            if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+            var timeoutToken = CreateTimeoutToken();
+            return await _serialPort.BaseStream
+                .ReadAsync(buffer, timeoutToken)
+                .ConfigureAwait(false);
         }
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> data)
         {
             if (_serialPort == null)
                 throw new InvalidOperationException("Device not connected");
-            await _serialPort.BaseStream.WriteAsync(data);
+
+            if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+            var timeoutToken = CreateTimeoutToken();
+            await _serialPort.BaseStream
+                .WriteAsync(data, timeoutToken)
+                .ConfigureAwait(false);
         }
     }
 }

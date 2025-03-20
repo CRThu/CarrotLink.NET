@@ -15,6 +15,16 @@ namespace CarrotLink.Core.Devices.Impl
 
         public DeviceBase(TConfig config) => Config = config;
 
+        protected CancellationToken CreateTimeoutToken()
+        {
+            var cts = new CancellationTokenSource();
+            if (Config.Timeout > 0)
+            {
+                cts.CancelAfter(Config.Timeout);
+            }
+            return cts.Token;
+        }
+
         public abstract Task ConnectAsync();
         public abstract Task DisconnectAsync();
 
