@@ -1,4 +1,5 @@
-﻿using CarrotCommFramework.Util;
+﻿using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Utility;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace CarrotCommFramework.Protocols
+namespace CarrotLink.Core.Protocols.Impl
 {
     public class RawAsciiProtocol : ProtocolBase
     {
@@ -30,7 +31,7 @@ namespace CarrotCommFramework.Protocols
         {
         }
 
-        public static bool TryParse(ref ReadOnlySequence<byte> buffer, out Packet? packet)
+        protected override bool TryDecode(ref ReadOnlySequence<byte> buffer, out PacketBase? packet)
         {
             packet = default;
 

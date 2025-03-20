@@ -1,15 +1,15 @@
-﻿using CarrotCommFramework.Util;
+﻿using CarrotLink.Core.Protocols.Models;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static CarrotCommFramework.Protocols.CarrotDataProtocolPacket;
+using static CarrotLink.Core.Protocols.Models.CarrotDataProtocolPacket;
 
-namespace CarrotCommFramework.Protocols
+namespace CarrotLink.Core.Protocols.Impl
 {
-    /*
     public class CarrotDataProtocol : ProtocolBase
     {
         public static new string Version { get; } = "CDPV1";
@@ -18,12 +18,9 @@ namespace CarrotCommFramework.Protocols
         {
         }
 
-
-
-        public override bool TryParse(ref ReadOnlySequence<byte> buffer, out IEnumerable<Packet>? packets, out long comsumedLength)
+        protected override bool TryDecode(ref ReadOnlySequence<byte> buffer, out PacketBase? packet)
         {
-            packets = null;
-            List<Packet> packetsList = new();
+            packet = null;
             SequenceReader<byte> reader = new SequenceReader<byte>(buffer);
             int packetLen = 0;
 
@@ -43,8 +40,7 @@ namespace CarrotCommFramework.Protocols
                     break;
                     //return false;
                 }
-                packetLen = GetPacketLength(protocolId);
-                if (packetLen == -1)
+                if (GetPacketLength(protocolId) == -1)
                 {
                     break;
                 }
@@ -74,16 +70,12 @@ namespace CarrotCommFramework.Protocols
                             break;
                     }
                     buffer = buffer.Slice(buffer.GetPosition(packetLen));
-                    packetsList.Add(pkt);
-
+                    packet = pkt;
+                    break;
                 }
             }
-
-            packets = packetsList;
-            comsumedLength = packetLen;
-            return packetsList.Count != 0;
+            return packet != null;
         }
 
     }
-    */
 }

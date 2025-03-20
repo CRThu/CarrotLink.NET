@@ -1,16 +1,15 @@
-﻿using CarrotCommFramework.Util;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotCommFramework.Protocols
+namespace CarrotLink.Core.Protocols.Models
 {
     /// <summary>
     /// 数据包
     /// </summary>
-    public class BinaryPacket : Packet
+    public class BinaryPacket : PacketBase
     {
         /// <summary>
         /// 数据包可阅读信息

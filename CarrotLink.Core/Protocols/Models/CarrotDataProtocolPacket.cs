@@ -1,12 +1,11 @@
-﻿using CarrotCommFramework.Util;
+﻿using CarrotLink.Core.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static CarrotCommFramework.Util.BytesEx;
 
-namespace CarrotCommFramework.Protocols
+namespace CarrotLink.Core.Protocols.Models
 {
     public enum CDP_TYPE
     {
@@ -17,7 +16,7 @@ namespace CarrotCommFramework.Protocols
     };
 
 
-    public class CarrotDataProtocolPacket : Packet
+    public class CarrotDataProtocolPacket : PacketBase
     {
         public const byte CDP_PACKET_START_BYTE = 0x3C;
         public const byte CDP_PACKET_END_BYTE = 0x3E;
