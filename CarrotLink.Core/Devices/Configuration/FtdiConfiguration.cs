@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Devices.Configuration
 {
+    /*
     public class FtdiConfiguration : DeviceConfigurationBase
     {
         public override void Validate()
@@ -14,4 +15,5 @@ namespace CarrotLink.Core.Devices.Configuration
             base.Validate();
         }
     }
+    */
 }

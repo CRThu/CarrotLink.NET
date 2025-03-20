@@ -16,7 +16,8 @@ using CarrotLink.Core.Devices.Configuration;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public class FtdiDevice : StreamBase
+    /*
+    public class FtdiDevice : DeviceBase
     {
         /// <summary>
         /// FTDI驱动包装类
@@ -156,4 +157,5 @@ namespace CarrotLink.Core.Devices.Impl
             return (int)rxQuene;
         }
     }
+    */
 }

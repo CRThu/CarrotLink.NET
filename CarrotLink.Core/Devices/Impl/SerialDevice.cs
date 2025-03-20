@@ -7,66 +7,54 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using CarrotLink.Core.Devices.Configuration;
+using NationalInstruments.DataInfrastructure;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public class SerialDevice : StreamBase
+    public class SerialDevice : DeviceBase<SerialConfiguration>
     {
-        /// <summary>
-        /// 流指示有数据
-        /// </summary>
-        public override bool ReadAvailable => Driver.BytesToRead > 0;
-
         /// <summary>
         /// 驱动层实现
         /// </summary>
-        private SerialPort Driver { get; set; } = new();
+        private SerialPort? _serialPort;
 
-        private readonly SerialConfiguration _config;
+        public SerialDevice(SerialConfiguration config) : base(config) { }
 
-        public SerialDevice(SerialConfiguration config)
+        public override async Task ConnectAsync()
         {
-            _config = config;
+            _serialPort = new SerialPort(
+                portName: Config.PortName,
+                baudRate: Config.BaudRate,
+                parity: (Parity)Config.Parity,
+                dataBits: Config.DataBits,
+                stopBits: (StopBits)Config.StopBits);
+            _serialPort.Open();
+            IsConnected = true;
+            await Task.CompletedTask;
         }
 
-        /// <summary>
-        /// 关闭流
-        /// </summary>
-        public override void Close()
+        public override async Task DisconnectAsync()
         {
-            Driver.Close();
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                _serialPort.Close();
+                IsConnected = false;
+            }
+            await Task.CompletedTask;
         }
 
-        /// <summary>
-        /// 打开流
-        /// </summary>
-        public override void Open()
+        public override async Task<int> ReadAsync(Memory<byte> buffer)
         {
-            Driver.Open();
+            if (_serialPort == null)
+                throw new InvalidOperationException("Device not connected");
+            return await _serialPort.BaseStream.ReadAsync(buffer);
         }
 
-        /// <summary>
-        /// 流写入
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        public override void Write(byte[] buffer, int offset, int count)
+        public override async Task WriteAsync(ReadOnlyMemory<byte> data)
         {
-            Driver.BaseStream.Write(buffer, offset, count);
-        }
-
-        /// <summary>
-        /// 流读取
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            // TODO 同步流读取存在阻塞，待优化
-            return Driver.BaseStream.Read(buffer, offset, count);
+            if (_serialPort == null)
+                throw new InvalidOperationException("Device not connected");
+            await _serialPort.BaseStream.WriteAsync(data);
         }
     }
 }

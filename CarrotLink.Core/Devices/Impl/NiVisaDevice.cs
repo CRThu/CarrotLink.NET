@@ -12,7 +12,8 @@ using CarrotLink.Core.Devices.Configuration;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public class NiVisaDevice : StreamBase
+    /*
+    public class NiVisaDevice : DeviceBase
     {
 
         /// <summary>
@@ -93,4 +94,5 @@ namespace CarrotLink.Core.Devices.Impl
             }
         }
     }
+    */
 }
