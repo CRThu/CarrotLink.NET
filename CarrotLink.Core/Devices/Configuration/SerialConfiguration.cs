@@ -68,6 +68,9 @@ namespace CarrotLink.Core.Devices.Configuration
         public SerialStopBits StopBits { get; set; } = SerialStopBits.One;
 
 
+        public bool UseHardwareEvent { get; set; } = false;
+
+
         public override void Validate()
         {
             base.Validate();

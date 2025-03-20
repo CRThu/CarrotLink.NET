@@ -7,11 +7,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Devices.Interfaces;
 using NationalInstruments.DataInfrastructure;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public class SerialDevice : DeviceBase<SerialConfiguration>
+    public class SerialDevice : DeviceBase<SerialConfiguration>, IEventTriggerDevice
     {
         /// <summary>
         /// 驱动层实现
@@ -19,6 +20,8 @@ namespace CarrotLink.Core.Devices.Impl
         private SerialPort? _serialPort;
 
         public SerialDevice(SerialConfiguration config) : base(config) { }
+
+        public event EventHandler<byte[]>? DataReceived;
 
         public override async Task ConnectAsync()
         {
@@ -31,6 +34,12 @@ namespace CarrotLink.Core.Devices.Impl
                 dataBits: Config.DataBits,
                 stopBits: (StopBits)Config.StopBits);
 
+            if (Config.UseHardwareEvent)
+            {
+                _serialPort.ReceivedBytesThreshold = 1; // 重要：收到1字节即触发
+                _serialPort.DataReceived += OnSerialDataReceived;
+            }
+
             _serialPort.Open();
             IsConnected = true;
             await Task.CompletedTask;
@@ -40,6 +49,12 @@ namespace CarrotLink.Core.Devices.Impl
         {
             if (_serialPort != null && _serialPort.IsOpen)
             {
+                if (Config.UseHardwareEvent)
+                {
+                    _serialPort.DataReceived -= OnSerialDataReceived;
+                }
+
+
                 _serialPort.Close();
                 IsConnected = false;
             }
@@ -71,5 +86,18 @@ namespace CarrotLink.Core.Devices.Impl
                 .WriteAsync(data, timeoutToken)
                 .ConfigureAwait(false);
         }
+        private void OnSerialDataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            if (!Config.UseHardwareEvent) return;
+            if (_serialPort == null || !_serialPort.IsOpen) return;
+
+            var bytesToRead = _serialPort.BytesToRead;
+            if (bytesToRead == 0) return;
+
+            var buffer = new byte[bytesToRead];
+            _serialPort.Read(buffer, 0, bytesToRead);
+            DataReceived?.Invoke(this, buffer);
+        }
+
     }
 }

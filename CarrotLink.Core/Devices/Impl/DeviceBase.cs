@@ -1,4 +1,5 @@
 ﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Devices.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
@@ -8,10 +9,11 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public abstract class DeviceBase<TConfig> : IDisposable where TConfig : DeviceConfigurationBase
+    public abstract class DeviceBase<TConfig> : IDevice, IDisposable where TConfig : DeviceConfigurationBase
     {
         public TConfig Config { get; }
         public bool IsConnected { get; protected set; }
+        DeviceConfigurationBase IDevice.Config => Config;
 
         public DeviceBase(TConfig config) => Config = config;
 

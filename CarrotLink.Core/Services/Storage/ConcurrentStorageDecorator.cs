@@ -8,23 +8,38 @@ namespace CarrotLink.Core.Services.Storage
 {
     public class ConcurrentStorageDecorator : IDataStorage
     {
-        public ConcurrentStorageDecorator(IDataStorage storage)
+        private readonly IDataStorage _innerStorage;
+        private readonly SemaphoreSlim _semaphore = new(1, 1);
+
+        public ConcurrentStorageDecorator(IDataStorage innerStorage)
         {
+            _innerStorage = innerStorage ?? throw new ArgumentNullException(nameof(innerStorage));
         }
 
-        public Task ExportAsCsvAsync(string filePath, IEnumerable<object> records)
+        public async Task SaveAsync(byte[] data)
         {
-            throw new NotImplementedException();
+            await _semaphore.WaitAsync();
+            try
+            {
+                await _innerStorage.SaveAsync(data);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
 
-        public Task ExportAsJsonAsync(string filePath, object data)
+        public async Task ExportAsJsonAsync(string path)
         {
-            throw new NotImplementedException();
-        }
-
-        public void StoreInMemory(byte[] data)
-        {
-            throw new NotImplementedException();
+            await _semaphore.WaitAsync();
+            try
+            {
+                await _innerStorage.ExportAsJsonAsync(path);
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
         }
     }
 }

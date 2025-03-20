@@ -8,8 +8,7 @@ namespace CarrotLink.Core.Services.Storage
 {
     public interface IDataStorage
     {
-        void StoreInMemory(byte[] data);
-        Task ExportAsJsonAsync(string filePath, object data);
-        Task ExportAsCsvAsync(string filePath, IEnumerable<object> records);
+        public Task SaveAsync(byte[] data);
+        public Task ExportAsJsonAsync(string path);
     }
 }

@@ -28,16 +28,14 @@ namespace CarrotLink.Client
             var pipeline = new DevicePipelineService(parser, new ConcurrentStorageDecorator(storage));
             _ = pipeline.StartProcessingAsync();
             // 定时读取数据
-            /*
             var scheduler = new DeviceServiceScheduler(device);
             scheduler.StartAutoPolling(1000, data =>
             {
                 pipeline.WriteToPipelineAsync(data).Wait();
                 Console.WriteLine($"Received {data.Length} bytes");
             });
-            */
             // 导出最终数据
-            await storage.ExportAsJsonAsync("data.json", new { Timestamp = DateTime.Now });
+            await storage.ExportAsJsonAsync("data.json");
         }
     }
 }
