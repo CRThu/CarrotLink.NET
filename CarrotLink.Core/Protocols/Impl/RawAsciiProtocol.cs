@@ -110,9 +110,9 @@ namespace CarrotLink.Core.Protocols.Impl
                 // packet generate
                 Console.WriteLine($"Read command to CRLF: {BytesEx.BytesToAscii(seqCmd.ToArray()).ReplaceLineEndings("\\r\\n")}");
 
+                buffer = reader.UnreadSequence;
                 packet = new RawAsciiProtocolPacket(seqCmd.ToArray());
             }
-            buffer = reader.UnreadSequence;
             return true;
         }
     }

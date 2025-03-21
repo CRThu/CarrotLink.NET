@@ -22,7 +22,11 @@ namespace CarrotLink.Core.Protocols.Impl
         {
             // 通用预处理（例如校验CRC）
             if (buffer.IsEmpty)
-                throw new ArgumentException("Empty data");
+            {
+                packet = null;
+                return false;
+            }
+
             return TryDecode(ref buffer, out packet);
         }
     }

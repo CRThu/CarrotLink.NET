@@ -4,6 +4,7 @@ using CarrotLink.Core.Services.Storage;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Text;
@@ -20,29 +21,46 @@ namespace CarrotLink.Core.Services
         private CancellationTokenSource _cts = new CancellationTokenSource();
         public DevicePipelineService(IProtocolParser parser, IDataStorage storage)
         {
-            _parser = parser;
-            _storage = storage;
+            _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
         public async Task StartProcessingAsync()
         {
             PipeReader? reader = _pipe.Reader;
-            while (!_cts.IsCancellationRequested)
+            try
             {
-                ReadResult readResult = await reader.ReadAsync(_cts.Token);
-                foreach (var segment in readResult.Buffer)
+                while (!_cts.IsCancellationRequested)
                 {
-                    //_parser.TryParse(segment, out RawAsciiProtocolPacket parsedData);
-                    //_storage.StoreInMemory(Encoding.UTF8.GetBytes(parsedData.ToString()));
+                    ReadResult readResult = await reader.ReadAsync(_cts.Token);
+                    var buffer = readResult.Buffer;
+                    while (true)
+                    {
+                        bool parsed = _parser.TryParse(ref buffer, out PacketBase? packet);
+                        if (!parsed || packet == null)
+                            break;
+
+                        await _storage.SaveAsync(packet.Bytes ?? Array.Empty<byte>());
+                    }
+                    reader.AdvanceTo(buffer.Start, buffer.End);
                 }
-                reader.AdvanceTo(readResult.Buffer.End);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("DevicePipelineService.StartProcessingAsync() cancelled");
             }
         }
+
         public async Task WriteToPipelineAsync(byte[] data)
         {
-            using IMemoryOwner<byte>? owner = _memoryPool.Rent(data.Length);
-            data.CopyTo(owner.Memory.Span);
-            await _pipe.Writer.WriteAsync(owner.Memory, _cts.Token);
+            await _pipe.Writer.WriteAsync(data, _cts.Token);
         }
-        public void Dispose() => _cts.Cancel();
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+            _pipe.Writer.Complete();
+            _pipe.Reader.Complete();
+        }
     }
 }

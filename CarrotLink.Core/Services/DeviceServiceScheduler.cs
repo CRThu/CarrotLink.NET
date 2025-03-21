@@ -15,6 +15,7 @@ namespace CarrotLink.Core.Services
     {
         private readonly IDevice _device;
         private Timer? _pollingTimer;
+        private bool _isProcessing = false;
 
         public DeviceServiceScheduler(IDevice device)
         {
@@ -32,15 +33,19 @@ namespace CarrotLink.Core.Services
         // 定时轮询模式
         public void StartAutoPolling(int intervalMs, Action<byte[]> callback)
         {
-            if (_device is IEventTriggerDevice)
-                throw new InvalidOperationException("Event-triggered device cannot use polling mode");
-
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
 
-            _pollingTimer = new Timer(async _ => {
+            _pollingTimer = new Timer(async _ =>
+            {
+                if (_isProcessing)
+                    return;
+                _isProcessing = true;
+
                 var data = await ManualReadAsync();
                 callback(data);
+
+                _isProcessing = false;
             }, null, 0, intervalMs);
         }
 
@@ -50,7 +55,8 @@ namespace CarrotLink.Core.Services
             if (_device is not IEventTriggerDevice eventDevice)
                 throw new NotSupportedException("Device does not support event triggering");
 
-            eventDevice.DataReceived += (sender, data) => {
+            eventDevice.DataReceived += (sender, data) =>
+            {
                 callback(data);
             };
         }

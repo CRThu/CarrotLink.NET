@@ -9,33 +9,42 @@ namespace CarrotLink.Client
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             Console.WriteLine("Hello, World!");
 
             // 示例：完整设备操作流程
             var config = new SerialConfiguration
             {
-                DeviceId = "Serial-COM3",
-                PortName = "COM3",
+                DeviceId = "Serial-COM250",
+                PortName = "COM250",
                 BaudRate = 115200,
             };
             var device = new SerialDevice(config);
-            var storage = new MemoryStorage();
+            device.ConnectAsync().Wait();
+
             var parser = new RawAsciiProtocol();
-            await device.ConnectAsync();
+            var storage = new MemoryStorage();
+
             // 创建带线程安全的存储管道
             var pipeline = new DevicePipelineService(parser, new ConcurrentStorageDecorator(storage));
             _ = pipeline.StartProcessingAsync();
+
             // 定时读取数据
             var scheduler = new DeviceServiceScheduler(device);
-            scheduler.StartAutoPolling(1000, data =>
+            scheduler.StartAutoPolling(100, async data =>
             {
-                pipeline.WriteToPipelineAsync(data).Wait();
+                await pipeline.WriteToPipelineAsync(data);
                 Console.WriteLine($"Received {data.Length} bytes");
             });
+
+
+            // 等待用户主动退出
+            Console.WriteLine("Press any key to end transfer");
+            Console.ReadKey();
+
             // 导出最终数据
-            await storage.ExportAsJsonAsync("data.json");
+            storage.ExportAsJsonAsync("data.json").Wait();
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CarrotLink.Core.Utility;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,7 +24,7 @@ namespace CarrotLink.Core.Services.Storage
 
         public Task ExportAsJsonAsync(string path)
         {
-            var jsonData = JsonSerializer.Serialize(_storageQueue);
+            var jsonData = JsonSerializer.Serialize(_storageQueue.Select(bytes => Encoding.ASCII.GetString(bytes)));
             return File.WriteAllTextAsync(path, jsonData);
         }
 
