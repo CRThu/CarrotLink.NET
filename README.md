@@ -35,7 +35,7 @@ CarrotLink.NET/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-repo/CarrotLink.NET.git
+   git clone https://github.com/CRThu/CarrotLink.NET.git
    ```
 
 2. **Open solution in Visual Studio**

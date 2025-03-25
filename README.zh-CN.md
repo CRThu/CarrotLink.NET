@@ -35,7 +35,7 @@ CarrotLink.NET/
 
 1. **克隆仓库**
    ```bash
-   git clone https://github.com/your-repo/CarrotLink.NET.git
+   git clone https://github.com/CRThu/CarrotLink.NET.git
    ```
 
 2. **使用Visual Studio打开解决方案**
