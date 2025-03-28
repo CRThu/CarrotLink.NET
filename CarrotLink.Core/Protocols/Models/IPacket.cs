@@ -6,24 +6,12 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
-    public interface IMessagePacket
+    public interface IPacket
     {
-        public byte[] Encode(string msg);
-
-        public string Decode(byte[] bytes);
+        PacketType Type { get; }
+        byte[] Pack(IProtocol protocol);
     }
 
-    public interface IRegisterPacket
-    {
-        public byte[] Encode(int oper, int regfile, int addr, int data);
+    public enum PacketType { Ascii, Binary, Register }
 
-        public (int control, int regfile, int addr, int data) Decode(byte[] bytes);
-    }
-
-    public interface IDataPacket
-    {
-        public byte[] Encode(byte[] data);
-
-        public byte[] Decode(byte[] data);
-    }
 }

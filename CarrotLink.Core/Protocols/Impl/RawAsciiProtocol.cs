@@ -31,7 +31,15 @@ namespace CarrotLink.Core.Protocols.Impl
         {
         }
 
-        protected override bool TryDecode(ref ReadOnlySequence<byte> buffer, out PacketBase? packet)
+        public override byte[] Pack(IPacket packet)
+        {
+            return packet switch {
+                AsciiPacket p => (p.Message + "\r\n").AsciiToBytes(),
+                _ => throw new NotSupportedException("RawAsciiProtocol only supports AsciiPacket")
+            };
+        }
+
+        protected override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = default;
 
@@ -111,7 +119,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 Console.WriteLine($"Read command to CRLF: {BytesEx.BytesToAscii(seqCmd.ToArray()).ReplaceLineEndings("\\r\\n")}");
 
                 buffer = reader.UnreadSequence;
-                packet = new RawAsciiProtocolPacket(seqCmd.ToArray());
+                packet = new AsciiPacket(BytesEx.BytesToAscii(seqCmd.ToArray()));
             }
             return true;
         }

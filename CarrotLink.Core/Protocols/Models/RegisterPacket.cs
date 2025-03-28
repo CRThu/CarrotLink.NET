@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
-    public record BinaryPacket(byte[] Data) : IPacket
+    public record RegisterPacket(int Oper, int RegFile, int Addr, int Value) : IPacket
     {
-        public PacketType Type => PacketType.Binary;
-        public byte[] Payload => Data;
+        public PacketType Type => PacketType.Register;
+        public (int, int, int, int) Payload => (Oper, RegFile, Addr, Value);
         public byte[] Pack(IProtocol protocol) => protocol.Pack(this);
     }
-
 }

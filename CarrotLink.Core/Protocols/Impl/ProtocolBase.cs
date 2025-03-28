@@ -11,14 +11,16 @@ namespace CarrotLink.Core.Protocols.Impl
     /// <summary>
     /// 协议基类
     /// </summary>
-    public abstract class ProtocolBase : IProtocolParser
+    public abstract class ProtocolBase : IProtocol
     {
-        public static string Version { get; set; } = nameof(ProtocolBase);
-        public string Name { get; set; }
+        public static string Version { get; set; } = "Ver.X";
+        public static string Name { get; set; } = nameof(ProtocolBase);
 
-        protected abstract bool TryDecode(ref ReadOnlySequence<byte> buffer, out PacketBase? packet);
+        public abstract byte[] Pack(IPacket packet);
 
-        public bool TryParse(ref ReadOnlySequence<byte> buffer, out PacketBase? packet)
+        protected abstract bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
+
+        public bool TryParse(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             // 通用预处理（例如校验CRC）
             if (buffer.IsEmpty)
@@ -29,5 +31,6 @@ namespace CarrotLink.Core.Protocols.Impl
 
             return TryDecode(ref buffer, out packet);
         }
+
     }
 }

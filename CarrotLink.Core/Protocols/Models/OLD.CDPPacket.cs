@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
+
+    /*
     public enum CDP_TYPE
     {
         UNKNOWN = 0x00,
@@ -255,4 +257,6 @@ namespace CarrotLink.Core.Protocols.Models
         }
 
     }
+
+    */
 }
