@@ -11,6 +11,10 @@ namespace CarrotLink.Core.Protocols.Models
         public PacketType Type => PacketType.Binary;
         public byte[] Payload => Data;
         public byte[] Pack(IProtocol protocol) => protocol.Pack(this);
+        public override string ToString()
+        {
+            return $"<{(ushort)(Payload[6] << 8 | Payload[5])} Bytes Data>";
+        }
     }
 
 }

@@ -9,6 +9,14 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
+    public enum CDP_TYPE
+    {
+        UNKNOWN = 0x00,
+        ASCII = 0x30,
+        DATA = 0x40,
+        REG = 0xA0
+    };
+
     public class CarrotDataProtocol : ProtocolBase
     {
         public static new string Version { get; } = "CDPV1";
@@ -16,6 +24,52 @@ namespace CarrotLink.Core.Protocols.Impl
         public CarrotDataProtocol()
         {
         }
+
+        public const byte CDP_PACKET_START_BYTE = 0x3C;
+        public const byte CDP_PACKET_END_BYTE = 0x3E;
+
+        public const byte ProtocolIdAsciiTransfer64 = 0x31;
+        public const byte ProtocolIdAsciiTransfer256 = 0x32;
+        public const byte ProtocolIdAsciiTransfer2048 = 0x33;
+        public const byte ProtocolIdDataTransfer74 = 0x41;
+        public const byte ProtocolIdDataTransfer266 = 0x42;
+        public const byte ProtocolIdDataTransfer2058 = 0x43;
+        public const byte ProtocolIdRegisterOper = 0xA0;
+        public const byte ProtocolIdRegisterReply = 0xA8;
+
+        /// <summary>
+        /// 预设协议长度
+        /// </summary>
+        /// <param name="ProtocolId"></param>
+        /// <returns></returns>
+        public static int GetPacketLength(byte protocolId)
+        {
+            return protocolId switch {
+
+                ProtocolIdAsciiTransfer64 => 64,
+                ProtocolIdAsciiTransfer256 => 256,
+                ProtocolIdAsciiTransfer2048 => 2048,
+                ProtocolIdDataTransfer74 => 64 + 10,
+                ProtocolIdDataTransfer266 => 256 + 10,
+                ProtocolIdDataTransfer2058 => 2048 + 10,
+                ProtocolIdRegisterOper => 256,
+                ProtocolIdRegisterReply => 256,
+                _ => -1,
+            };
+        }
+
+        public static CDP_TYPE GetCdpType(byte protocolId)
+        {
+            if (protocolId >= 0x30 && protocolId <= 0x3F)
+                return CDP_TYPE.ASCII;
+            else if (protocolId >= 0x40 && protocolId <= 0x4F)
+                return CDP_TYPE.DATA;
+            else if (protocolId >= 0xA0 && protocolId <= 0xAF)
+                return CDP_TYPE.REG;
+            else
+                return CDP_TYPE.UNKNOWN;
+        }
+
 
         public override byte[] Pack(IPacket packet)
         {
@@ -60,15 +114,14 @@ namespace CarrotLink.Core.Protocols.Impl
                 {
                     // 不完整包结构则结束
                     break;
-                    //return false;
                 }
                 if ((reader.Remaining < 2) || (!reader.TryPeek(1, out byte protocolId)))
                 {
                     // 不完整包结构则结束
                     break;
-                    //return false;
                 }
-                if (GetPacketLength(protocolId) == -1)
+                packetLen = GetPacketLength(protocolId);
+                if (packetLen == -1)
                 {
                     break;
                 }
@@ -76,29 +129,27 @@ namespace CarrotLink.Core.Protocols.Impl
                 {
                     // 不完整包结构则结束
                     break;
-                    //return false;
                 }
 
                 var x = reader.TryReadExact(packetLen, out var pktSeq);
                 if (x)
                 {
-                    CarrotDataProtocolPacket pkt = new(pktSeq.ToArray());
-                    switch (GetCdpType(pkt.ProtocolId!.Value))
+                    var pktArray = pktSeq.ToArray();
+                    switch (GetCdpType(pktArray[1]))
                     {
                         case CDP_TYPE.DATA:
-                            pkt = new CdpDataPacket(pkt);
+                            packet = new BinaryPacket(pktArray);
                             break;
                         case CDP_TYPE.ASCII:
-                            pkt = new CdpMessagePacket(pkt);
+                            packet = new BinaryPacket(pktArray);
                             break;
                         case CDP_TYPE.REG:
-                            pkt = new CdpRegisterPacket(pkt);
+                            packet = new BinaryPacket(pktArray);
                             break;
                         default:
                             break;
                     }
                     buffer = buffer.Slice(buffer.GetPosition(packetLen));
-                    packet = pkt;
                     break;
                 }
             }

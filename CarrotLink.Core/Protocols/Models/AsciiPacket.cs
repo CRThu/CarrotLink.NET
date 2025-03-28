@@ -15,7 +15,8 @@ namespace CarrotLink.Core.Protocols.Models
 
         public override string ToString()
         {
-            return Payload.TrimEnd("\r\n".ToCharArray());
+            
+            return $"{Payload.ReplaceLineEndings("\\r\\n")}";
         }
     }
 }

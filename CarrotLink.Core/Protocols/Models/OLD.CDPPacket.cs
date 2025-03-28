@@ -9,75 +9,11 @@ namespace CarrotLink.Core.Protocols.Models
 {
 
     /*
-    public enum CDP_TYPE
-    {
-        UNKNOWN = 0x00,
-        ASCII = 0x30,
-        DATA = 0x40,
-        REG = 0xA0
-    };
 
 
     public class CarrotDataProtocolPacket : PacketBase
     {
-        public const byte CDP_PACKET_START_BYTE = 0x3C;
-        public const byte CDP_PACKET_END_BYTE = 0x3E;
 
-        public const byte ProtocolIdAsciiTransfer64 = 0x31;
-        public const byte ProtocolIdAsciiTransfer256 = 0x32;
-        public const byte ProtocolIdAsciiTransfer2048 = 0x33;
-        public const byte ProtocolIdDataTransfer74 = 0x41;
-        public const byte ProtocolIdDataTransfer266 = 0x42;
-        public const byte ProtocolIdDataTransfer2058 = 0x43;
-        public const byte ProtocolIdRegisterOper = 0xA0;
-        public const byte ProtocolIdRegisterReply = 0xA8;
-
-        public CarrotDataProtocolPacket() : base()
-        {
-        }
-
-        public CarrotDataProtocolPacket(byte[] bytes) : base(bytes)
-        {
-        }
-
-        public CarrotDataProtocolPacket(CarrotDataProtocolPacket packet) : base(packet.Bytes!)
-        {
-
-        }
-
-        /// <summary>
-        /// 预设协议长度
-        /// </summary>
-        /// <param name="ProtocolId"></param>
-        /// <returns></returns>
-        public static int GetPacketLength(byte protocolId)
-        {
-            return protocolId switch
-            {
-
-                ProtocolIdAsciiTransfer64 => 64,
-                ProtocolIdAsciiTransfer256 => 256,
-                ProtocolIdAsciiTransfer2048 => 2048,
-                ProtocolIdDataTransfer74 => 64 + 10,
-                ProtocolIdDataTransfer266 => 256 + 10,
-                ProtocolIdDataTransfer2058 => 2048 + 10,
-                ProtocolIdRegisterOper => 256,
-                ProtocolIdRegisterReply => 256,
-                _ => -1,
-            };
-        }
-
-        public static CDP_TYPE GetCdpType(byte protocolId)
-        {
-            if (protocolId >= 0x30 && protocolId <= 0x3F)
-                return CDP_TYPE.ASCII;
-            else if (protocolId >= 0x40 && protocolId <= 0x4F)
-                return CDP_TYPE.DATA;
-            else if (protocolId >= 0xA0 && protocolId <= 0xAF)
-                return CDP_TYPE.REG;
-            else
-                return CDP_TYPE.UNKNOWN;
-        }
 
         /// <summary>
         /// 字节数组
@@ -91,24 +27,6 @@ namespace CarrotLink.Core.Protocols.Models
         public override byte? ProtocolId => Bytes?[1];
         public override byte? StreamId => Bytes?[4];
 
-
-        public string GetDisplayMessage()
-        {
-            if (ProtocolId is null)
-                return "<NULL>";
-            var type = GetCdpType(ProtocolId.Value);
-            switch (type)
-            {
-                case CDP_TYPE.ASCII:
-                    return $"{Payload.ToArray().BytesToAscii().ReplaceLineEndings("")}";
-                case CDP_TYPE.DATA:
-                    return $"<{PayloadLength} Bytes Data>";
-                case CDP_TYPE.REG:
-                    return $"{Payload.ToArray().BytesToHexString()}";
-                default:
-                    return $"<UNKNOWN>";
-            }
-        }
 
         public byte[] Pack(byte[] payload, byte? protocolId, byte? streamId)
         {

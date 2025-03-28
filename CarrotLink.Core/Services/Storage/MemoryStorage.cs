@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Utility;
+﻿using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Utility;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,25 +12,25 @@ namespace CarrotLink.Core.Services.Storage
 {
     public class MemoryStorage : IDataStorage
     {
-        private readonly ConcurrentQueue<byte[]> _storageQueue = new();
+        private readonly ConcurrentQueue<IPacket> _storageQueue = new();
 
-        public Task SaveAsync(byte[] data)
+        public Task SaveAsync(IPacket? packet)
         {
-            if (data == null)
-                throw new ArgumentNullException(nameof(data));
+            if (packet == null)
+                throw new ArgumentNullException(nameof(packet));
 
-            _storageQueue.Enqueue(data);
+            _storageQueue.Enqueue(packet);
             return Task.CompletedTask;
         }
 
         public Task ExportAsJsonAsync(string path)
         {
-            var jsonData = JsonSerializer.Serialize(_storageQueue.Select(bytes => Encoding.ASCII.GetString(bytes)));
+            var jsonData = JsonSerializer.Serialize(_storageQueue);
             return File.WriteAllTextAsync(path, jsonData);
         }
 
         // 辅助方法：获取内存中存储的数据
-        public IEnumerable<byte[]> GetStoredData()
+        public IEnumerable<IPacket> GetStoredData()
         {
             return _storageQueue.ToArray();
         }

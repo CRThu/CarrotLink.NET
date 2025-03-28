@@ -11,5 +11,9 @@ namespace CarrotLink.Core.Protocols.Models
         public PacketType Type => PacketType.Register;
         public (int, int, int, int) Payload => (Oper, RegFile, Addr, Value);
         public byte[] Pack(IProtocol protocol) => protocol.Pack(this);
+        public override string ToString()
+        {
+            return $"{Payload.Item1},{Payload.Item2},{Payload.Item3},{Payload.Item4}";
+        }
     }
 }

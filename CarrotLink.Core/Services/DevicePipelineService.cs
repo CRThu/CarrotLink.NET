@@ -15,13 +15,13 @@ namespace CarrotLink.Core.Services
     public sealed class DevicePipelineService : IDisposable
     {
         private readonly Pipe _pipe = new Pipe();
-        private readonly IProtocolParser _parser;
+        private readonly IProtocol _protocol;
         private readonly IDataStorage _storage;
         private readonly MemoryPool<byte> _memoryPool = MemoryPool<byte>.Shared;
         private CancellationTokenSource _cts = new CancellationTokenSource();
-        public DevicePipelineService(IProtocolParser parser, IDataStorage storage)
+        public DevicePipelineService(IProtocol parser, IDataStorage storage)
         {
-            _parser = parser ?? throw new ArgumentNullException(nameof(parser));
+            _protocol = parser ?? throw new ArgumentNullException(nameof(parser));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
         public async Task StartProcessingAsync()
@@ -35,11 +35,11 @@ namespace CarrotLink.Core.Services
                     var buffer = readResult.Buffer;
                     while (true)
                     {
-                        bool parsed = _parser.TryParse(ref buffer, out PacketBase? packet);
+                        bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
                         if (!parsed || packet == null)
                             break;
 
-                        await _storage.SaveAsync(packet.Bytes ?? Array.Empty<byte>());
+                        await _storage.SaveAsync(packet);
                     }
                     reader.AdvanceTo(buffer.Start, buffer.End);
                 }

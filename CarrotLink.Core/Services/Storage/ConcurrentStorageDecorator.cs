@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CarrotLink.Core.Protocols.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +17,7 @@ namespace CarrotLink.Core.Services.Storage
             _innerStorage = innerStorage ?? throw new ArgumentNullException(nameof(innerStorage));
         }
 
-        public async Task SaveAsync(byte[] data)
+        public async Task SaveAsync(IPacket? data)
         {
             await _semaphore.WaitAsync();
             try
