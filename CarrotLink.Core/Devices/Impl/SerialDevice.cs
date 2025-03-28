@@ -34,6 +34,9 @@ namespace CarrotLink.Core.Devices.Impl
                 dataBits: Config.DataBits,
                 stopBits: (StopBits)Config.StopBits);
 
+            _serialPort.ReadBufferSize = 1048576;
+            _serialPort.WriteBufferSize = 1048576;
+
             if (Config.UseHardwareEvent)
             {
                 _serialPort.ReceivedBytesThreshold = 1; // 重要：收到1字节即触发

@@ -10,20 +10,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services
+namespace CarrotLink.Core.Services.Device
 {
     public sealed class DevicePipelineService : IDisposable
     {
         private readonly Pipe _pipe = new Pipe();
         private readonly IProtocol _protocol;
         private readonly IDataStorage _storage;
-        private readonly MemoryPool<byte> _memoryPool = MemoryPool<byte>.Shared;
         private CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly object _writeLock = new object();
+
         public DevicePipelineService(IProtocol parser, IDataStorage storage)
         {
             _protocol = parser ?? throw new ArgumentNullException(nameof(parser));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
+
         public async Task StartProcessingAsync()
         {
             PipeReader? reader = _pipe.Reader;
@@ -52,7 +54,10 @@ namespace CarrotLink.Core.Services
 
         public async Task WriteToPipelineAsync(byte[] data)
         {
-            await _pipe.Writer.WriteAsync(data, _cts.Token);
+            lock (_writeLock)
+            {
+                _pipe.Writer.WriteAsync(data, _cts.Token).AsTask().Wait();
+            }
         }
 
         public void Dispose()
