@@ -76,8 +76,18 @@ namespace CarrotLink.Core.Devices.Impl
 
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
-            var timeoutToken = CreateTimeoutToken();
             int bytesRead;
+
+            //// 异步实现
+            //var timeoutToken = CreateTimeoutToken();
+            //bytesRead = await _serialPort.BaseStream
+            //   .ReadAsync(buffer, timeoutToken)
+            //   .ConfigureAwait(false);
+            //TotalReceivedBytes += bytesRead;
+
+            //return bytesRead;
+
+            // 同步实现
             byte[] localBuffer = new byte[buffer.Length];
 
             lock (_lock_r)
@@ -100,6 +110,15 @@ namespace CarrotLink.Core.Devices.Impl
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
             var timeoutToken = CreateTimeoutToken();
+
+            //// 异步实现
+            //await _serialPort.BaseStream
+            //    .WriteAsync(data, timeoutToken)
+            //    .ConfigureAwait(false);
+            //TotalSentBytes += data.Length;
+
+
+            // 同步实现
             byte[] localBuffer = data.ToArray();
 
             lock (_lock_w)
@@ -109,6 +128,7 @@ namespace CarrotLink.Core.Devices.Impl
             }
 
             await Task.CompletedTask;
+
         }
 
         private void OnSerialDataReceived(object sender, SerialDataReceivedEventArgs e)

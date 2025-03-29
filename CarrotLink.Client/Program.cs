@@ -32,12 +32,12 @@ namespace CarrotLink.Client
             var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
             _ = service.StartProcessingAsync();
 
-            service.StartAutoPolling(1000, data => {
+            service.StartAutoPolling(100, data => {
             });
 
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
-            int packetNum = 1000000;
+            int packetNum = 100000;
             for (int i = 0; i < packetNum; i++)
             {
                 await service.SendAscii($"{i:D18}");
