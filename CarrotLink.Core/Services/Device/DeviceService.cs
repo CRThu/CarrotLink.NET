@@ -27,9 +27,7 @@ namespace CarrotLink.Core.Services.Device
         private CancellationTokenSource _cts = new CancellationTokenSource();
 
         // timer for read
-        private Timer? _pollingTimer;
-        private bool _isProcessing = false;
-
+        private PeriodicTimer? _pollingTimer;
 
         public int TotalBytesReceived { get; private set; } = 0;
         object lockObject = new object();
@@ -92,26 +90,19 @@ namespace CarrotLink.Core.Services.Device
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
 
-            _pollingTimer = new Timer(async _ => {
-                lock (lockObject)
+            _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
+            _ = Task.Run(async () => {
+                while (await _pollingTimer.WaitForNextTickAsync())
                 {
-                    if (_isProcessing)
-                        return;
-                    _isProcessing = true;
+                    var data = await ManualReadAsync();
+                    await _pipe.Writer.WriteAsync(data, _cts.Token);
+
+                    callback(data);
+
+                    TotalBytesReceived += data.Length;
+                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
                 }
-
-                var data = await ManualReadAsync();
-                await _pipe.Writer.WriteAsync(data, _cts.Token);
-                //_pipe.Writer.WriteAsync(data, _cts.Token).AsTask().Wait();
-
-                callback(data);
-
-                TotalBytesReceived += data.Length;
-                Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
-
-
-                _isProcessing = false;
-            }, null, 0, intervalMs);
+            });
         }
 
         // 事件触发模式（需设备支持硬件中断）

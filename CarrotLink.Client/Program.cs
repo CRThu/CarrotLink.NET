@@ -19,7 +19,7 @@ namespace CarrotLink.Client
             var config = new SerialConfiguration {
                 DeviceId = "Serial-COM250",
                 PortName = "COM250",
-                BaudRate = 921600,
+                BaudRate = 115200,
             };
             var device = new SerialDevice(config);
             await device.ConnectAsync();
@@ -32,12 +32,12 @@ namespace CarrotLink.Client
             var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
             _ = service.StartProcessingAsync();
 
-            service.StartAutoPolling(100, data => {
+            service.StartAutoPolling(1000, data => {
             });
 
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
-            int packetNum = 10000;
+            int packetNum = 1000000;
             for (int i = 0; i < packetNum; i++)
             {
                 await service.SendAscii($"{i:D18}");
