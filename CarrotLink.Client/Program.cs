@@ -16,6 +16,29 @@ namespace CarrotLink.Client
         {
             Console.WriteLine("Hello, World!");
 
+            var (device, service, storage) = await InitializeDeviceAndServiceAsync();
+
+            Console.WriteLine("请选择操作:");
+            Console.WriteLine("1. 测试数据传输");
+            Console.WriteLine("2. 测试通信");
+            var choice = Console.ReadLine();
+
+            switch (choice)
+            {
+                case "1":
+                    await PerformDataTransferTestAsync(device, service, storage);
+                    break;
+                case "2":
+                    await HandleUserInputAsync(service, storage);
+                    break;
+                default:
+                    Console.WriteLine("无效选择");
+                    break;
+            }
+        }
+
+        private static async Task<(LoopbackDevice, DeviceService, MemoryStorage)> InitializeDeviceAndServiceAsync()
+        {
             // 示例：完整设备操作流程
             //var config = new SerialConfiguration {
             //    DeviceId = "Serial-COM250",
@@ -24,7 +47,6 @@ namespace CarrotLink.Client
             //};
             //var device = new SerialDevice(config);
 
-
             var device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
             await device.ConnectAsync();
 
@@ -32,12 +54,15 @@ namespace CarrotLink.Client
             var storage = new MemoryStorage();
 
             // 创建带线程安全的存储管道
-            // 定时读取数据
             var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
             _ = service.StartProcessingAsync();
 
-            service.StartAutoPolling(100, data => {
-            });
+            return (device, service, storage);
+        }
+
+        private static async Task PerformDataTransferTestAsync(LoopbackDevice device, DeviceService service, MemoryStorage storage)
+        {
+            service.StartAutoPolling(100, data => { });
 
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
@@ -56,8 +81,8 @@ namespace CarrotLink.Client
             Console.WriteLine($"Device TX: {device.TotalSentBytes}, RX: {device.TotalReceivedBytes}");
 
             // 比较数据是否正确
-            var sentData = Enumerable.Range(0, packetNum).Select(i => $"{i:D18}").ToArray(); ;
-            var receivedData = storage.GetStoredData().ToArray(); ;
+            var sentData = Enumerable.Range(0, packetNum).Select(i => $"{i:D18}").ToArray();
+            var receivedData = storage.GetStoredData().ToArray();
 
             for (int i = 0; i < sentData.Length; i++)
             {
@@ -68,6 +93,13 @@ namespace CarrotLink.Client
             }
             bool isDataCorrect = sentData.SequenceEqual(receivedData.Select(p => (p as AsciiPacket).Payload));
             Console.WriteLine($"数据是否正确: {isDataCorrect}");
+        }
+
+        private static async Task HandleUserInputAsync(DeviceService service, MemoryStorage storage)
+        {
+            service.StartAutoPolling(100, data => {
+                Console.WriteLine($"Received: {System.Text.Encoding.ASCII.GetString(data)}");
+            });
 
             // 循环读取用户输入并发送
             Console.WriteLine("Press ESC to end transfer");
@@ -79,11 +111,11 @@ namespace CarrotLink.Client
                     break;
                 }
                 await service.SendAscii(key.KeyChar.ToString());
+                Console.WriteLine($"Sent: {key.KeyChar}");
             }
 
             // 导出最终数据
-            storage.ExportAsJsonAsync("data.json").Wait();
-
+            await storage.ExportAsJsonAsync("data.json");
         }
     }
 }
