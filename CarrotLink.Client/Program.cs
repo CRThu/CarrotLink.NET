@@ -44,6 +44,17 @@ namespace CarrotLink.Client
                 Console.WriteLine($"Received {data.Length} bytes, Total: {totalBytesReceived} bytes");
             });
 
+            // 发送大数据量测试
+            Console.WriteLine("开始数据测试...");
+            string largeData = new string('A', 1000000); // 1M
+            int chunkSize = 1000; // 1000
+            for (int i = 0; i < largeData.Length; i += chunkSize)
+            {
+                string chunk = largeData.Substring(i, Math.Min(chunkSize, largeData.Length - i));
+                await service.SendAscii(chunk);
+            }
+            Console.WriteLine("数据测试发送完成");
+
             // 循环读取用户输入并发送
             Console.WriteLine("Press ESC to end transfer");
             while (true)
