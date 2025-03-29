@@ -15,6 +15,9 @@ namespace CarrotLink.Core.Devices.Impl
         public bool IsConnected { get; protected set; }
         DeviceConfigurationBase IDevice.Config => Config;
 
+        public long TotalReceivedBytes { get; protected set; } = 0;
+        public long TotalSentBytes { get; protected set; } = 0;
+
         public DeviceBase(TConfig config) => Config = config;
 
         protected CancellationToken CreateTimeoutToken()

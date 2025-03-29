@@ -18,6 +18,8 @@ namespace CarrotLink.Core.Devices.Impl
         /// 驱动层实现
         /// </summary>
         private SerialPort? _serialPort;
+        private readonly object _lock_w = new object();
+        private readonly object _lock_r = new object();
 
         public SerialDevice(SerialConfiguration config) : base(config) { }
 
@@ -34,8 +36,8 @@ namespace CarrotLink.Core.Devices.Impl
                 dataBits: Config.DataBits,
                 stopBits: (StopBits)Config.StopBits);
 
-            _serialPort.ReadBufferSize = 1048576;
-            _serialPort.WriteBufferSize = 1048576;
+            _serialPort.ReadBufferSize = 16 * 1024 * 1024;
+            _serialPort.WriteBufferSize = 16 * 1024 * 1024;
 
             if (Config.UseHardwareEvent)
             {
@@ -45,6 +47,10 @@ namespace CarrotLink.Core.Devices.Impl
 
             _serialPort.Open();
             IsConnected = true;
+
+            TotalSentBytes = 0;
+            TotalReceivedBytes = 0;
+
             await Task.CompletedTask;
         }
 
@@ -56,7 +62,6 @@ namespace CarrotLink.Core.Devices.Impl
                 {
                     _serialPort.DataReceived -= OnSerialDataReceived;
                 }
-
 
                 _serialPort.Close();
                 IsConnected = false;
@@ -72,9 +77,19 @@ namespace CarrotLink.Core.Devices.Impl
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
             var timeoutToken = CreateTimeoutToken();
-            return await _serialPort.BaseStream
-                .ReadAsync(buffer, timeoutToken)
-                .ConfigureAwait(false);
+            int bytesRead;
+            byte[] localBuffer = new byte[buffer.Length];
+
+            lock (_lock_r)
+            {
+                bytesRead = _serialPort.Read(localBuffer, 0, localBuffer.Length);
+                TotalReceivedBytes += bytesRead;
+            }
+
+            localBuffer.AsMemory(0, bytesRead).CopyTo(buffer);
+            await Task.CompletedTask;
+
+            return bytesRead;
         }
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> data)
@@ -85,22 +100,31 @@ namespace CarrotLink.Core.Devices.Impl
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
             var timeoutToken = CreateTimeoutToken();
-            await _serialPort.BaseStream
-                .WriteAsync(data, timeoutToken)
-                .ConfigureAwait(false);
+            byte[] localBuffer = data.ToArray();
+
+            lock (_lock_w)
+            {
+                _serialPort.Write(localBuffer, 0, localBuffer.Length);
+                TotalSentBytes += data.Length;
+            }
+
+            await Task.CompletedTask;
         }
+
         private void OnSerialDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
             if (!Config.UseHardwareEvent) return;
             if (_serialPort == null || !_serialPort.IsOpen) return;
 
-            var bytesToRead = _serialPort.BytesToRead;
-            if (bytesToRead == 0) return;
+            lock (_lock_r)
+            {
+                var bytesToRead = _serialPort.BytesToRead;
+                if (bytesToRead == 0) return;
 
-            var buffer = new byte[bytesToRead];
-            _serialPort.Read(buffer, 0, bytesToRead);
-            DataReceived?.Invoke(this, buffer);
+                var buffer = new byte[bytesToRead];
+                _serialPort.Read(buffer, 0, bytesToRead);
+                DataReceived?.Invoke(this, buffer);
+            }
         }
-
     }
 }

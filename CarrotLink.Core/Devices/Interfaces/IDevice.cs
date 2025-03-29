@@ -12,6 +12,9 @@ namespace CarrotLink.Core.Devices.Interfaces
         bool IsConnected { get; }
         DeviceConfigurationBase Config { get; }
 
+        public long TotalReceivedBytes { get; }
+        public long TotalSentBytes { get; }
+
         Task ConnectAsync();
         Task DisconnectAsync();
         Task<int> ReadAsync(Memory<byte> buffer);

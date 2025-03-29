@@ -25,7 +25,8 @@ namespace CarrotLink.Core.Services.Storage
 
         public Task ExportAsJsonAsync(string path)
         {
-            var jsonData = JsonSerializer.Serialize(_storageQueue);
+            var p = _storageQueue.Select(p => p.ToString()).ToArray();
+            var jsonData = JsonSerializer.Serialize(p);
             return File.WriteAllTextAsync(path, jsonData);
         }
 

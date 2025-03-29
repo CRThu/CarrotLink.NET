@@ -5,6 +5,7 @@ using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols;
 using CarrotLink.Core.Protocols.Impl;
 using CarrotLink.Core.Services.Device;
+using CarrotLink.Core.Utility;
 
 namespace CarrotLink.Client
 {
@@ -18,7 +19,7 @@ namespace CarrotLink.Client
             var config = new SerialConfiguration {
                 DeviceId = "Serial-COM250",
                 PortName = "COM250",
-                BaudRate = 115200,
+                BaudRate = 921600,
             };
             var device = new SerialDevice(config);
             await device.ConnectAsync();
@@ -27,33 +28,28 @@ namespace CarrotLink.Client
             var storage = new MemoryStorage();
 
             // 创建带线程安全的存储管道
-            var pipeline = new DevicePipelineService(protocol, new ConcurrentStorageDecorator(storage));
-            _ = pipeline.StartProcessingAsync();
-
             // 定时读取数据
-            var service = new DeviceService(device, protocol);
-            int totalBytesReceived = 0;
-            object lockObject = new object();
+            var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
+            _ = service.StartProcessingAsync();
 
-            service.StartAutoPolling(100, async data => {
-                await pipeline.WriteToPipelineAsync(data);
-                lock (lockObject)
-                {
-                    totalBytesReceived += data.Length;
-                }
-                Console.WriteLine($"Received {data.Length} bytes, Total: {totalBytesReceived} bytes");
+            service.StartAutoPolling(100, data => {
             });
 
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
-            string largeData = new string('A', 1000000); // 1M
-            int chunkSize = 1000; // 1000
-            for (int i = 0; i < largeData.Length; i += chunkSize)
+            int packetNum = 10000;
+            for (int i = 0; i < packetNum; i++)
             {
-                string chunk = largeData.Substring(i, Math.Min(chunkSize, largeData.Length - i));
-                await service.SendAscii(chunk);
+                await service.SendAscii($"{i:D18}");
             }
+
             Console.WriteLine("数据测试发送完成");
+
+            Console.WriteLine("Press any key to see transfer info:");
+            Console.ReadKey(intercept: true);
+            Console.WriteLine($"TotalBytesReceived: {service.TotalBytesReceived}");
+            Console.WriteLine($"Device TX: {device.TotalSentBytes}, RX: {device.TotalReceivedBytes}");
+
 
             // 循环读取用户输入并发送
             Console.WriteLine("Press ESC to end transfer");

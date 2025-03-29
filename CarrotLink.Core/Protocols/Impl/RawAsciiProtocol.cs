@@ -34,7 +34,7 @@ namespace CarrotLink.Core.Protocols.Impl
         public override byte[] Pack(IPacket packet)
         {
             return packet switch {
-                AsciiPacket p => (p.Message + "\r\n").AsciiToBytes(),
+                AsciiPacket p => (p.Payload + "\r\n").AsciiToBytes(),
                 _ => throw new NotSupportedException("RawAsciiProtocol only supports AsciiPacket")
             };
         }
