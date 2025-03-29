@@ -10,6 +10,7 @@ namespace CarrotLink.Core.Devices.Impl
         private int _bufferSize;
         private int _readPosition;
         private int _writePosition;
+        private readonly object _lock = new object();
 
         public LoopbackDevice(LoopbackConfiguration config) : base(config)
         {
@@ -35,16 +36,19 @@ namespace CarrotLink.Core.Devices.Impl
                 throw new InvalidOperationException("Device is not connected");
 
             int bytesRead = 0;
-            while (bytesRead < buffer.Length)
+            lock (_lock)
             {
-                int localReadPosition = _readPosition;
-                int localWritePosition = _writePosition;
+                while (bytesRead < buffer.Length)
+                {
+                    int localReadPosition = _readPosition;
+                    int localWritePosition = _writePosition;
 
-                if (localReadPosition == localWritePosition)
-                    break;
+                    if (localReadPosition == localWritePosition)
+                        break;
 
-                buffer.Span[bytesRead++] = _buffer[localReadPosition];
-                Interlocked.CompareExchange(ref _readPosition, (localReadPosition + 1) % _bufferSize, localReadPosition);
+                    buffer.Span[bytesRead++] = _buffer[localReadPosition];
+                    _readPosition = (localReadPosition + 1) % _bufferSize;
+                }
             }
 
             TotalReceivedBytes += bytesRead;
@@ -56,15 +60,14 @@ namespace CarrotLink.Core.Devices.Impl
             if (!IsConnected)
                 throw new InvalidOperationException("Device is not connected");
 
-            foreach (var b in data.Span)
+            lock (_lock)
             {
-                int localWritePosition;
-                do
+                foreach (var b in data.Span)
                 {
-                    localWritePosition = _writePosition;
-                } while (Interlocked.CompareExchange(ref _writePosition, (localWritePosition + 1) % _bufferSize, localWritePosition) != localWritePosition);
-
-                _buffer[localWritePosition] = b;
+                    int localWritePosition = _writePosition;
+                    _buffer[localWritePosition] = b;
+                    _writePosition = (localWritePosition + 1) % _bufferSize;
+                }
             }
 
             TotalSentBytes += data.Length;
