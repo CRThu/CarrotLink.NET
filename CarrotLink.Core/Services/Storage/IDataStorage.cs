@@ -9,6 +9,7 @@ namespace CarrotLink.Core.Services.Storage
 {
     public interface IDataStorage
     {
+        public IPacket? Read();
         public Task SaveAsync(IPacket? data);
         public Task ExportAsJsonAsync(string path);
     }

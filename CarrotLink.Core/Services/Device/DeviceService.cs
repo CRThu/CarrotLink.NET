@@ -105,7 +105,7 @@ namespace CarrotLink.Core.Services.Device
         }
 
         // 定时轮询模式
-        public void StartAutoPolling(int intervalMs, Action<byte[]> callback)
+        public void StartAutoPolling(int intervalMs)
         {
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
@@ -115,10 +115,6 @@ namespace CarrotLink.Core.Services.Device
                 while (await _pollingTimer.WaitForNextTickAsync())
                 {
                     var data = await ReadImplAsync();
-                    if (data.Length > 0)
-                    {
-                        callback(data);
-                    }
                 }
             });
         }

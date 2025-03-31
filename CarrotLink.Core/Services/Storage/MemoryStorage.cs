@@ -14,6 +14,15 @@ namespace CarrotLink.Core.Services.Storage
     {
         private readonly ConcurrentQueue<IPacket> _storageQueue = new();
 
+        public long TotalStoredPackets => _storageQueue.Count;
+
+        public IPacket? Read()
+        {
+            if (_storageQueue.TryDequeue(out var packet))
+                return packet;
+            return null;
+        }
+
         public Task SaveAsync(IPacket? packet)
         {
             if (packet == null)

@@ -20,7 +20,7 @@ namespace CarrotLink.Client
 
             Console.WriteLine("请选择操作:");
             Console.WriteLine("1. 测试数据传输");
-            Console.WriteLine("2. 测试通信");
+            Console.WriteLine("2. 测试通信, 读取");
             var choice = Console.ReadLine();
 
             switch (choice)
@@ -57,13 +57,13 @@ namespace CarrotLink.Client
             var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
             _ = service.StartProcessingAsync();
 
+            service.StartAutoPolling(100);
+
             return (device, service, storage);
         }
 
         private static async Task PerformDataTransferTestAsync(LoopbackDevice device, DeviceService service, MemoryStorage storage)
         {
-            service.StartAutoPolling(100, data => { });
-
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
             int packetNum = 1000000;
@@ -97,10 +97,6 @@ namespace CarrotLink.Client
 
         private static async Task HandleUserInputAsync(DeviceService service, MemoryStorage storage)
         {
-            service.StartAutoPolling(100, data => {
-                Console.WriteLine($"Received: {System.Text.Encoding.ASCII.GetString(data)}");
-            });
-
             // 循环读取用户输入并发送
             Console.WriteLine("Press ESC to end transfer");
             while (true)
@@ -112,6 +108,12 @@ namespace CarrotLink.Client
                 }
                 await service.SendAscii(key.KeyChar.ToString());
                 Console.WriteLine($"Sent: {key.KeyChar}");
+
+                await Task.Delay(1000);
+
+                var pkt = storage.Read();
+                if(pkt != null)
+                    Console.WriteLine($"Received: {(pkt as AsciiPacket)}");
             }
 
             // 导出最终数据

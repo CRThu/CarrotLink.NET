@@ -17,6 +17,11 @@ namespace CarrotLink.Core.Services.Storage
             _innerStorage = innerStorage ?? throw new ArgumentNullException(nameof(innerStorage));
         }
 
+        public IPacket? Read()
+        {
+            return _innerStorage.Read();
+        }
+
         public async Task SaveAsync(IPacket? data)
         {
             await _semaphore.WaitAsync();
@@ -42,5 +47,6 @@ namespace CarrotLink.Core.Services.Storage
                 _semaphore.Release();
             }
         }
+
     }
 }
