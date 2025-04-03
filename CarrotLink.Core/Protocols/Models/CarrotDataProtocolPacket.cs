@@ -1,31 +1,69 @@
-﻿using CarrotLink.Core.Utility;
+﻿using CarrotLink.Core.Protocols.Impl;
+using CarrotLink.Core.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Protocols.Models
+namespace CarrotLink.Core.Protocols.Models.Old
 {
 
-    /*
-
-
-    public class CarrotDataProtocolPacket : PacketBase
+    public class CarrotDataProtocolPacket
     {
 
 
         /// <summary>
         /// 字节数组
         /// </summary>
-        public override byte[]? Bytes { get; set; }
+        public byte[]? Bytes { get; set; }
+        public byte? ProtocolId => Bytes?[1];
+        public byte? StreamId => Bytes?[4];
+
+        public const byte CDP_PACKET_START_BYTE = 0x3C;
+        public const byte CDP_PACKET_END_BYTE = 0x3E;
+
+        public const byte ProtocolIdAsciiTransfer64 = 0x31;
+        public const byte ProtocolIdAsciiTransfer256 = 0x32;
+        public const byte ProtocolIdAsciiTransfer2048 = 0x33;
+        public const byte ProtocolIdDataTransfer74 = 0x41;
+        public const byte ProtocolIdDataTransfer266 = 0x42;
+        public const byte ProtocolIdDataTransfer2058 = 0x43;
+        public const byte ProtocolIdRegisterOper = 0xA0;
+        public const byte ProtocolIdRegisterReply = 0xA8;
 
         /// <summary>
-        /// 数据包可阅读信息
+        /// 预设协议长度
         /// </summary>
-        public override string? Message => GetDisplayMessage();
-        public override byte? ProtocolId => Bytes?[1];
-        public override byte? StreamId => Bytes?[4];
+        /// <param name="ProtocolId"></param>
+        /// <returns></returns>
+        public static int GetPacketLength(byte protocolId)
+        {
+            return protocolId switch {
+
+                ProtocolIdAsciiTransfer64 => 64,
+                ProtocolIdAsciiTransfer256 => 256,
+                ProtocolIdAsciiTransfer2048 => 2048,
+                ProtocolIdDataTransfer74 => 64 + 10,
+                ProtocolIdDataTransfer266 => 256 + 10,
+                ProtocolIdDataTransfer2058 => 2048 + 10,
+                ProtocolIdRegisterOper => 256,
+                ProtocolIdRegisterReply => 256,
+                _ => -1,
+            };
+        }
+
+        public static CDP_TYPE GetCdpType(byte protocolId)
+        {
+            if (protocolId >= 0x30 && protocolId <= 0x3F)
+                return CDP_TYPE.ASCII;
+            else if (protocolId >= 0x40 && protocolId <= 0x4F)
+                return CDP_TYPE.DATA;
+            else if (protocolId >= 0xA0 && protocolId <= 0xAF)
+                return CDP_TYPE.REG;
+            else
+                return CDP_TYPE.UNKNOWN;
+        }
 
 
         public byte[] Pack(byte[] payload, byte? protocolId, byte? streamId)
@@ -94,18 +132,12 @@ namespace CarrotLink.Core.Protocols.Models
     }
 
 
-    public class CdpRegisterPacket : CarrotDataProtocolPacket, IRegisterPacket
+    public class CdpRegisterPacket : CarrotDataProtocolPacket
     {
         public CdpRegisterPacket(int oper, int regfile, int addr, int data)
         {
             Bytes = Pack(Encode(oper, regfile, addr, data), ProtocolIdRegisterOper, 0);
         }
-
-        public CdpRegisterPacket(CarrotDataProtocolPacket packet) : base(packet)
-        {
-
-        }
-
         public byte[] Encode(int oper, int regfile, int addr, int data)
         {
             byte[] payload = new byte[16];
@@ -127,16 +159,11 @@ namespace CarrotLink.Core.Protocols.Models
     }
 
 
-    public class CdpMessagePacket : CarrotDataProtocolPacket, IMessagePacket
+    public class CdpMessagePacket : CarrotDataProtocolPacket
     {
         public CdpMessagePacket(string msg)
         {
             Bytes = Pack(Encode(msg), ProtocolIdAsciiTransfer256, 0);
-        }
-
-        public CdpMessagePacket(CarrotDataProtocolPacket packet) : base(packet)
-        {
-
         }
 
         public byte[] Encode(string msg)
@@ -151,7 +178,7 @@ namespace CarrotLink.Core.Protocols.Models
 
     }
 
-    public class CdpDataPacket : CarrotDataProtocolPacket, IDataPacket
+    public class CdpDataPacket : CarrotDataProtocolPacket
     {
 
         public CdpDataPacket(byte[] data)
@@ -159,10 +186,6 @@ namespace CarrotLink.Core.Protocols.Models
             Bytes = Pack(Encode(data), ProtocolIdAsciiTransfer256, 0);
         }
 
-        public CdpDataPacket(CarrotDataProtocolPacket packet) : base(packet)
-        {
-
-        }
 
         public byte[] Encode(byte[] data)
         {
@@ -175,6 +198,4 @@ namespace CarrotLink.Core.Protocols.Models
         }
 
     }
-
-    */
 }

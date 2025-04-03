@@ -1,4 +1,5 @@
 ﻿using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Protocols.Models.Old;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -84,19 +85,22 @@ namespace CarrotLink.Core.Protocols.Impl
         private static byte[] EncodeAscii(string message)
         {
             // 实现 ASCII 封包逻辑（带CDP帧头）
-            throw new NotImplementedException(nameof(EncodeAscii) + "is not implemented.");
+            CdpMessagePacket p = new(message);
+            return p.Bytes!;
         }
 
         private static byte[] EncodeBinary(byte[] data)
         {
             // 实现二进制数据封包逻辑
-            throw new NotImplementedException(nameof(EncodeBinary) + "is not implemented.");
+            CdpDataPacket p = new(data);
+            return p.Bytes!;
         }
 
         private static byte[] EncodeRegister(int oper, int regFile, int addr, int value)
         {
             // 实现寄存器操作封包逻辑
-            throw new NotImplementedException(nameof(EncodeRegister) + "is not implemented.");
+            CdpRegisterPacket p = new(oper,regFile,addr, value);
+            return p.Bytes!;
         }
 
 
