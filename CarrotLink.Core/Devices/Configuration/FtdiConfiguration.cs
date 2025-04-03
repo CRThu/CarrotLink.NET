@@ -7,13 +7,17 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Devices.Configuration
 {
-    /*
     public class FtdiConfiguration : DeviceConfigurationBase
     {
+        /// <summary>
+        /// 序列号（必需）
+        /// </summary>
+        [JsonPropertyName("serialNumber")]
+        public required string SerialNumber { get; init; }
+
         public override void Validate()
         {
             base.Validate();
         }
     }
-    */
 }

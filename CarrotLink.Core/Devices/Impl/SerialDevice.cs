@@ -109,9 +109,9 @@ namespace CarrotLink.Core.Devices.Impl
 
             if (!IsConnected) throw new InvalidOperationException("Not connected");
 
-            var timeoutToken = CreateTimeoutToken();
 
             //// 异步实现
+            //var timeoutToken = CreateTimeoutToken();
             //await _serialPort.BaseStream
             //    .WriteAsync(data, timeoutToken)
             //    .ConfigureAwait(false);

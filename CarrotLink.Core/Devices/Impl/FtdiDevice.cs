@@ -9,56 +9,34 @@ using System.Threading.Tasks;
 using FTD2XX_NET;
 using static FTD2XX_NET.FTDI;
 using System.Diagnostics;
-using System.Net.NetworkInformation;
 using System.Threading;
-using CarrotLink.Core.Discovery.Searchers;
 using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Devices.Library;
+using NationalInstruments.DataInfrastructure;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    /*
-    public class FtdiDevice : DeviceBase
+    public class FtdiDevice : DeviceBase<FtdiConfiguration>
     {
         /// <summary>
-        /// FTDI驱动包装类
+        /// 驱动层实现
         /// </summary>
-        private FTDI Ftdi { get; set; }
+        private FTDI ftdi;
+        private readonly object _lock_w = new object();
+        private readonly object _lock_r = new object();
 
-        private int Timeout { get; set; } = 1000;
-
-        private byte FtdiMask { get; set; }
-        private byte FtdiMode { get; set; }
-
-        private readonly FtdiConfiguration _config;
-
-        public FtdiDevice(FtdiConfiguration config)
+        public FtdiDevice(FtdiConfiguration config) : base(config)
         {
-
-            _config = config;
+            ftdi = new FTDI();
         }
-
-        /// <summary>
-        /// 流指示有数据
-        /// </summary>
-        public override bool ReadAvailable => Ftdi != null && Ftdi.IsOpen && GetBytesToRead() != 0;
-
-        /// <summary>
-        /// 关闭流
-        /// </summary>
-        public override void Close()
+        public override async Task ConnectAsync()
         {
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.Close());
-        }
+            if (IsConnected) return;
 
-        /// <summary>
-        /// 打开流
-        /// </summary>
-        public override void Open()
-        {
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.OpenBySerialNumber("SerialNumber"));
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.OpenBySerialNumber(Config.SerialNumber));
 
             // Set Timeout
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.SetTimeouts((uint)Timeout, (uint)Timeout));
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetTimeouts((uint)Config.Timeout, (uint)Config.Timeout));
 
             // Set BitMode
             // SYNC FIFO MODE NEED BOTH WRITE EEPROM AND SETBITMODE
@@ -73,89 +51,83 @@ namespace CarrotLink.Core.Devices.Impl
             //     For FT2232 devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_MPSSE, FT_BIT_MODE_SYNC_BITBANG, FT_BIT_MODE_MCU_HOST, FT_BIT_MODE_FAST_SERIAL.
             //     For FT232B and FT245B devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG.
             mode = FT_BIT_MODES.FT_BIT_MODE_SYNC_FIFO;
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.SetBitMode(mask, mode));
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetBitMode(mask, mode));
 
 
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.Purge(FT_PURGE.FT_PURGE_RX & FT_PURGE.FT_PURGE_TX));
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Purge(FT_PURGE.FT_PURGE_RX & FT_PURGE.FT_PURGE_TX));
+
+            IsConnected = true;
+            TotalSentBytes = 0;
+            TotalReceivedBytes = 0;
+
+            await Task.CompletedTask;
         }
-
-        /// <summary>
-        /// 流写入
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        public override void Write(byte[] buffer, int offset, int count)
+        public override async Task DisconnectAsync()
         {
-            WriteInternal(buffer, offset, count);
-        }
-
-        /// <summary>
-        /// 流读取
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <param name="offset"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            return ReadInternal(buffer, offset, count);
-        }
-
-        private void WriteInternal(byte[] buffer, int offset, int count)
-        {
-            byte[] bufferWithZeroOffset = buffer;
-            uint numBytesWritten = 0;
-            if (offset != 0)
+            if (ftdi != null && ftdi.IsOpen)
             {
-                bufferWithZeroOffset = buffer.Skip(offset).ToArray();
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Close());
+                IsConnected = false;
             }
-
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.Write(bufferWithZeroOffset, count, ref numBytesWritten));
-
-            // Waiting for transfer done
-            // TODO 同步流写入存在阻塞，待优化
-            while (count != numBytesWritten)
-            {
-                Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{count})");
-            }
+            await Task.CompletedTask;
         }
-
-        private int ReadInternal(byte[] buffer, int offset, int bytesExpected)
+        //private int GetBytesToRead()
+        //{
+        //    uint rxQuene = 0;
+        //    Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetRxBytesAvailable(ref rxQuene));
+        //    return (int)rxQuene;
+        //}
+        public override async Task<int> ReadAsync(Memory<byte> buffer)
         {
-            uint currentBytesRead = 0;
-            uint currentBytesExpected = 0;
-            int totalBytesRead = 0;
-            byte[] rx = new byte[Math.Min(bytesExpected, 1048576)];
+            if (ftdi == null)
+                throw new InvalidOperationException("Device not connected");
 
-            int BytesToRead = GetBytesToRead();
-            bytesExpected = BytesToRead > bytesExpected ? bytesExpected : BytesToRead;
+            if (!IsConnected) throw new InvalidOperationException("Not connected");
 
-            while (bytesExpected > 0)
+            // 同步实现
+
+            uint bytesRead = 0;
+            int bytesExpected = 0;
+            byte[] rx = new byte[Math.Min(buffer.Length, Config.BufferSize)];
+
+            bytesExpected = rx.Length > bytesExpected ? bytesExpected : rx.Length;
+
+            lock (_lock_r)
             {
-                // 一次读取不超过读取缓冲区的长度字节流
-                currentBytesExpected = (uint)bytesExpected;
-                currentBytesExpected = rx.Length > currentBytesExpected ? currentBytesExpected : (uint)rx.Length;
-
                 // Read
-                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.Read(rx, currentBytesExpected, ref currentBytesRead));
-
-                // Copy to Buffer
-                Array.Copy(rx, 0, buffer, offset, currentBytesRead);
-
-                offset += (int)currentBytesRead;
-                totalBytesRead += (int)currentBytesRead;
-                bytesExpected -= (int)currentBytesRead;
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(rx, (uint)bytesExpected, ref bytesRead));
+                TotalReceivedBytes += bytesRead;
             }
-            return totalBytesRead;
-        }
+            rx.AsMemory(0, (int)bytesRead).CopyTo(buffer);
 
-        private int GetBytesToRead()
+            await Task.CompletedTask;
+
+            return (int)bytesRead;
+        }
+        public override async Task WriteAsync(ReadOnlyMemory<byte> data)
         {
-            uint rxQuene = 0;
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => Ftdi.GetRxBytesAvailable(ref rxQuene));
-            return (int)rxQuene;
+            if (ftdi == null)
+                throw new InvalidOperationException("Device not connected");
+
+            if (!IsConnected) throw new InvalidOperationException("Not connected");
+
+            byte[] bufferWithZeroOffset = data.ToArray();
+            uint numBytesWritten = 0;
+
+            lock (_lock_w)
+            {
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Write(bufferWithZeroOffset, bufferWithZeroOffset.Length, ref numBytesWritten));
+
+                // Waiting for transfer done
+                // TODO 同步流写入存在阻塞，待优化
+                while (bufferWithZeroOffset.Length != numBytesWritten)
+                {
+                    Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{bufferWithZeroOffset.Length})");
+                }
+
+                TotalSentBytes += bufferWithZeroOffset.Length;
+            }
+            await Task.CompletedTask;
         }
     }
-    */
 }

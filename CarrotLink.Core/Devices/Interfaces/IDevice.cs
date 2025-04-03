@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Devices.Interfaces
 {
-    public interface IDevice
+    public interface IDevice : IDisposable
     {
         bool IsConnected { get; }
         DeviceConfigurationBase Config { get; }
