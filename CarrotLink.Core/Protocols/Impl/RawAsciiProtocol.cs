@@ -51,7 +51,7 @@ namespace CarrotLink.Core.Protocols.Impl
             var bDataCloseTag = "]]>";
             var binaryCloseTag = "</binary>";
             var dataCloseTag = "</data>";
-            var crlf = "\r\n";
+            var crlf = "\n";
 
             var xmlCmdTagHeadOpenCompare = $"{dataOpenTag}{headOpenTag}".AsciiToBytes().AsSpan();
             var xmlCmdTagBinOpenCompare = $"{headCloseTag}{binaryOpenTag}{bDataOpenTag}".AsciiToBytes().AsSpan();
