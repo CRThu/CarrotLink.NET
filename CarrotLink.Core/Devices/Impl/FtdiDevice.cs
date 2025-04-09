@@ -56,6 +56,8 @@ namespace CarrotLink.Core.Devices.Impl
 
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Purge(FT_PURGE.FT_PURGE_RX & FT_PURGE.FT_PURGE_TX));
 
+            ftdi.SetTimeouts(1, 1);
+
             IsConnected = true;
             TotalSentBytes = 0;
             TotalReceivedBytes = 0;
@@ -90,7 +92,7 @@ namespace CarrotLink.Core.Devices.Impl
             int bytesExpected = 0;
             byte[] rx = new byte[Math.Min(buffer.Length, Config.BufferSize)];
 
-            bytesExpected = rx.Length > bytesExpected ? bytesExpected : rx.Length;
+            bytesExpected = rx.Length;
 
             lock (_lock_r)
             {
