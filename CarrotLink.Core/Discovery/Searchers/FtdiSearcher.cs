@@ -37,25 +37,48 @@ namespace CarrotLink.Core.Discovery.Searchers
                 FT_DEVICE_INFO_NODE[] ftdiDeviceList = new FT_DEVICE_INFO_NODE[ftdiDeviceCount];
 
                 // Populate our device list
-                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetDeviceList(ftdiDeviceList), 100);
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetDeviceList(ftdiDeviceList), 1000);
 
+                /*
+                    Device Index: 0
+                    Flags: 2
+                    Type: FT_DEVICE_2232H
+                    ID: 4036010
+                    Location ID: 151
+                    Serial Number: FT87WWZ2A
+                    Description: FT2232H device A
+
+                    Device Index: 1
+                    Flags: 2
+                    Type: FT_DEVICE_2232H
+                    ID: 4036010
+                    Location ID: 152
+                    Serial Number: FT87WWZ2B
+                    Description: FT2232H device B
+                */
+#if DEBUG
                 for (uint i = 0; i < ftdiDeviceCount; i++)
                 {
-                    Debug.WriteLine("Device Index: " + i.ToString());
-                    Debug.WriteLine("Flags: " + string.Format("{0:x}", ftdiDeviceList[i].Flags));
-                    Debug.WriteLine("Type: " + ftdiDeviceList[i].Type.ToString());
-                    Debug.WriteLine("ID: " + string.Format("{0:x}", ftdiDeviceList[i].ID));
-                    Debug.WriteLine("Location ID: " + string.Format("{0:x}", ftdiDeviceList[i].LocId));
-                    Debug.WriteLine("Serial Number: " + ftdiDeviceList[i].SerialNumber.ToString());
-                    Debug.WriteLine("Description: " + ftdiDeviceList[i].Description.ToString());
-                    Debug.WriteLine("");
+                    Console.WriteLine("Device Index: " + i.ToString());
+                    Console.WriteLine("Flags: " + string.Format("{0:x}", ftdiDeviceList[i].Flags));
+                    Console.WriteLine("Type: " + ftdiDeviceList[i].Type.ToString());
+                    Console.WriteLine("ID: " + string.Format("{0:x}", ftdiDeviceList[i].ID));
+                    Console.WriteLine("Location ID: " + string.Format("{0:x}", ftdiDeviceList[i].LocId));
+                    Console.WriteLine("Serial Number: " + ftdiDeviceList[i].SerialNumber.ToString());
+                    Console.WriteLine("Description: " + ftdiDeviceList[i].Description.ToString());
+                    Console.WriteLine("");
                 }
-                return ftdiDeviceList.Select(dev => new DeviceInfo(/*"FTDI", dev.SerialNumber, dev.Description*/));
+#endif
+                return ftdiDeviceList.Select(dev => new DeviceInfo() {
+                    Interface = "FTDI",
+                    Name = dev.SerialNumber,
+                    Description = dev.Description
+                });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
-                return [];
+                Console.WriteLine(ex);
+                return Array.Empty<DeviceInfo>();
             }
         }
     }

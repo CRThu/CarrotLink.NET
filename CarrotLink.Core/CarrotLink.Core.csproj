@@ -21,9 +21,11 @@
     </Reference>
     <Reference Include="NationalInstruments.Common">
       <HintPath>..\Library\NationalInstruments\NationalInstruments.Common.dll</HintPath>
+      <Private></Private>
     </Reference>
     <Reference Include="NationalInstruments.VisaNS">
       <HintPath>..\Library\NationalInstruments\NationalInstruments.VisaNS.dll</HintPath>
+      <Private></Private>
     </Reference>
   </ItemGroup>
 

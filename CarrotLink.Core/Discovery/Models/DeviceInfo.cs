@@ -16,10 +16,10 @@ namespace CarrotLink.Core.Discovery.Models
     /// <summary>
     /// 设备信息
     /// </summary>
-    public class DeviceInfo
+    public record DeviceInfo
     {
-        public string Interface { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string Interface { get; init; }
+        public string Name { get; init; }
+        public string Description { get; init; }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
@@ -21,12 +22,19 @@ namespace CarrotLink.Core.Discovery.Searchers
 
         public IEnumerable<DeviceInfo> Search()
         {
-            return SerialPort.GetPortNames().Select(d => new DeviceInfo(/*"COM", d, "串口设备"*/)).ToArray();
-            //return
-            //[
-            //    new DeviceInfo("COM","200","SERIALPORT COM200 FOR TEST"),
-            //    new DeviceInfo("COM","201","SERIALPORT COM201 FOR TEST")
-            //];
+            try
+            {
+                return SerialPort.GetPortNames().Select(portName => new DeviceInfo() {
+                    Interface = "SerialPort",
+                    Name = portName,
+                    Description = "串口设备"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return Array.Empty<DeviceInfo>();
+            }
         }
     }
 }

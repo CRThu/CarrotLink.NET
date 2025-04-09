@@ -18,14 +18,11 @@ namespace CarrotLink.Core.Discovery
             return searcher.Search();
         }
 
-        public Dictionary<DeviceType, IEnumerable<DeviceInfo>> DiscoverAll()
+        public IEnumerable<DeviceInfo> DiscoverAll()
         {
             return Enum.GetValues(typeof(DeviceType))
                 .Cast<DeviceType>()
-                .ToDictionary(
-                    type => type,
-                    type => DiscoverDevices(type)
-                );
+                .SelectMany(type => DiscoverDevices(type).Select(device =>device));
         }
     }
 }

@@ -7,6 +7,7 @@ using CarrotLink.Core.Protocols.Impl;
 using CarrotLink.Core.Services.Device;
 using CarrotLink.Core.Utility;
 using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Discovery;
 
 namespace CarrotLink.Client
 {
@@ -19,12 +20,16 @@ namespace CarrotLink.Client
             var (device, service, storage) = await InitializeDeviceAndServiceAsync();
 
             Console.WriteLine("请选择操作:");
+            Console.WriteLine("0. 设备扫描");
             Console.WriteLine("1. 测试数据传输");
             Console.WriteLine("2. 测试通信, 读取");
             var choice = Console.ReadLine();
 
             switch (choice)
             {
+                case "0":
+                    await DiscoverAllDevicesAsync();
+                    break;
                 case "1":
                     await PerformDataTransferTestAsync(device, service, storage);
                     break;
@@ -35,6 +40,33 @@ namespace CarrotLink.Client
                     Console.WriteLine("无效选择");
                     break;
             }
+
+           Console.ReadKey();
+        }
+
+        private static async Task DiscoverAllDevicesAsync()
+        {
+            Console.WriteLine("Searching for all devices...");
+
+            var factory = new DeviceSearcherFactory();
+            var service = new DeviceDiscoveryService(factory);
+
+            var allDevices = service.DiscoverAll();
+
+            if (allDevices.Any())
+            {
+                Console.WriteLine("The following devices were found:");
+                foreach (var device in allDevices)
+                {
+                    Console.WriteLine($"Interface: {device.Interface}, Name: {device.Name}, Description: {device.Description}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No devices were found.");
+            }
+
+            await Task.CompletedTask;
         }
 
         private static async Task<(LoopbackDevice, DeviceService, MemoryStorage)> InitializeDeviceAndServiceAsync()

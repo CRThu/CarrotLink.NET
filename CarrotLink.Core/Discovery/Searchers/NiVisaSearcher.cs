@@ -24,11 +24,15 @@ namespace CarrotLink.Core.Discovery.Searchers
                 string expression = "?*";
                 //string expression = "GPIB?*INSTR";
                 string[] res = ResourceManager.GetLocalManager().FindResources(expression);
-                return res.Select(d => new DeviceInfo(/*"VISA", d, "NI-VISA DEVICE"*/)).ToArray();
+                return res.Select(resourceName => new DeviceInfo() {
+                    Interface = "VISA",
+                    Name = resourceName,
+                    Description = "NI-VISA DEVICE"
+                });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex.ToString());
+                Console.WriteLine(ex);
                 return Array.Empty<DeviceInfo>();
             }
         }
