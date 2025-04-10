@@ -12,7 +12,6 @@ using System.Diagnostics;
 using System.Threading;
 using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Library;
-using NationalInstruments.DataInfrastructure;
 
 namespace CarrotLink.Core.Devices.Impl
 {

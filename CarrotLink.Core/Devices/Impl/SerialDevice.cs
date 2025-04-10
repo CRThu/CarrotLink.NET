@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Interfaces;
-using NationalInstruments.DataInfrastructure;
 
 namespace CarrotLink.Core.Devices.Impl
 {

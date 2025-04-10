@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,6 +16,8 @@ namespace CarrotLink.Core.Discovery.Searchers
         public DeviceType SupportedType => DeviceType.Gpib;
         public NiVisaSearcher()
         {
+            Assembly.LoadFrom("NationalInstruments.Common.dll");
+            Assembly.LoadFrom("NationalInstruments.VisaNS.dll");
         }
 
         public IEnumerable<DeviceInfo> Search()
