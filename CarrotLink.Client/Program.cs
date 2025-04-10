@@ -15,6 +15,7 @@ namespace CarrotLink.Client
     {
         static async Task Main(string[] args)
         {
+            Console.WriteLine("[CarrotLink.Client]");
             Console.WriteLine("Hello, World!");
 
             var (device, service, storage) = await InitializeDeviceAndServiceAsync();
