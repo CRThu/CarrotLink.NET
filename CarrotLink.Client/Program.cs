@@ -8,6 +8,7 @@ using CarrotLink.Core.Services.Device;
 using CarrotLink.Core.Utility;
 using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Discovery;
+using CarrotLink.Core.Devices.Interfaces;
 
 namespace CarrotLink.Client
 {
@@ -42,7 +43,9 @@ namespace CarrotLink.Client
                     break;
             }
 
-           Console.ReadKey();
+            await device.DisconnectAsync();
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
 
         private static async Task DiscoverAllDevicesAsync()
@@ -70,17 +73,17 @@ namespace CarrotLink.Client
             await Task.CompletedTask;
         }
 
-        private static async Task<(LoopbackDevice, DeviceService, MemoryStorage)> InitializeDeviceAndServiceAsync()
+        private static async Task<(IDevice, DeviceService, MemoryStorage)> InitializeDeviceAndServiceAsync()
         {
             // 示例：完整设备操作流程
-            //var config = new SerialConfiguration {
-            //    DeviceId = "Serial-COM250",
-            //    PortName = "COM250",
-            //    BaudRate = 115200,
-            //};
-            //var device = new SerialDevice(config);
+            var config = new SerialConfiguration {
+                DeviceId = "Serial-COM14",
+                PortName = "COM14",
+                BaudRate = 115200,
+            };
+            var device = new SerialDevice(config);
 
-            var device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            //var device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
             await device.ConnectAsync();
 
             var protocol = new RawAsciiProtocol();
@@ -90,12 +93,12 @@ namespace CarrotLink.Client
             var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
             _ = service.StartProcessingAsync();
 
-            service.StartAutoPolling(100);
+            service.StartAutoPolling(250);
 
             return (device, service, storage);
         }
 
-        private static async Task PerformDataTransferTestAsync(LoopbackDevice device, DeviceService service, MemoryStorage storage)
+        private static async Task PerformDataTransferTestAsync(IDevice device, DeviceService service, MemoryStorage storage)
         {
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
@@ -131,18 +134,18 @@ namespace CarrotLink.Client
         private static async Task HandleUserInputAsync(DeviceService service, MemoryStorage storage)
         {
             // 循环读取用户输入并发送
-            Console.WriteLine("Press ESC to end transfer");
+            Console.WriteLine("Press exit to end transfer");
             while (true)
             {
-                var key = Console.ReadKey(intercept: true);
-                if (key.Key == ConsoleKey.Escape)
+                var line = Console.ReadLine();
+                if (line == "exit")
                 {
                     break;
                 }
-                await service.SendAscii(key.KeyChar.ToString());
-                Console.WriteLine($"Sent: {key.KeyChar}");
+                await service.SendAscii(line!.ToString());
+                Console.WriteLine($"Sent: {line}");
 
-                await Task.Delay(1000);
+                await Task.Delay(500);
 
                 var pkt = storage.Read();
                 if(pkt != null)

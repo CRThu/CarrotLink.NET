@@ -62,7 +62,7 @@ namespace CarrotLink.Core.Services.Device
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine("DeviceService.StartProcessingAsync() cancelled");
+                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
             }
         }
 
@@ -73,13 +73,22 @@ namespace CarrotLink.Core.Services.Device
         /// <returns></returns>
         public async Task WriteAsync(IPacket packet)
         {
-            byte[] data = packet.Pack(_protocol);
-            await _device.WriteAsync(data);
-            TotalBytesSent += data.Length;
+            try
+            {
+                byte[] data = packet.Pack(_protocol);
+                await _device.WriteAsync(data);
+                TotalBytesSent += data.Length;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
         private async Task<byte[]> ReadImplAsync()
         {
+            //try
+            //{
             var buffer = new byte[_device.Config.BufferSize];
             int bytesRead = await _device.ReadAsync(buffer.AsMemory());
             var data = buffer.Take(bytesRead).ToArray();
@@ -96,27 +105,60 @@ namespace CarrotLink.Core.Services.Device
                 }
             }
             return data;
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex);
+            //    return Array.Empty<byte>();
+            //}
         }
 
         // 手动触发模式
         public async Task<byte[]> ManualReadAsync()
         {
-            return await ReadImplAsync();
+            try
+            {
+                return await ReadImplAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return Array.Empty<byte>();
+            }
         }
 
         // 定时轮询模式
         public void StartAutoPolling(int intervalMs)
         {
-            if (_pollingTimer != null)
-                throw new InvalidOperationException("Polling is already active");
+            try
+            {
+                if (_pollingTimer != null)
+                    throw new InvalidOperationException("Polling is already active");
 
-            _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
-            _ = Task.Run(async () => {
-                while (await _pollingTimer.WaitForNextTickAsync())
-                {
-                    var data = await ReadImplAsync();
-                }
-            });
+                _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
+                _ = Task.Run(async () => {
+                    while (await _pollingTimer.WaitForNextTickAsync(_cts.Token))
+                    {
+                        try
+                        {
+                            Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
+                            var data = await ReadImplAsync();
+                            Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                        }
+                        catch (Exception ex)
+                        {
+                            Dispose();
+                            Console.WriteLine($"HRESULT:0x{ex.HResult:X8}");
+                            Console.WriteLine(ex);
+                            break;
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
 
@@ -126,43 +168,57 @@ namespace CarrotLink.Core.Services.Device
 
         public void RegisterEventTrigger(Action<byte[]> callback)
         {
-            if (_device is not IEventTriggerDevice eventDevice)
-                throw new NotSupportedException("Device does not support event triggering");
+            try
+            {
+                if (_device is not IEventTriggerDevice eventDevice)
+                    throw new NotSupportedException("Device does not support event triggering");
 
-            eventDevice.DataReceived += (sender, data) => {
-                if (data.Length > 0)
-                {
-                    lock (_lockObj)
-                    {
-                        if (_isProcessing)
-                            return;
-
-                        _isProcessing = true;
-                    }
-
-                    try
-                    {
-                        callback(data);
-                        TotalBytesReceived += data.Length;
-                        Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
-                    }
-                    finally
+                eventDevice.DataReceived += (sender, data) => {
+                    if (data.Length > 0)
                     {
                         lock (_lockObj)
                         {
-                            _isProcessing = false;
+                            if (_isProcessing)
+                                return;
+
+                            _isProcessing = true;
+                        }
+
+                        try
+                        {
+                            callback(data);
+                            TotalBytesReceived += data.Length;
+                            Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
+                        }
+                        finally
+                        {
+                            lock (_lockObj)
+                            {
+                                _isProcessing = false;
+                            }
                         }
                     }
-                }
-            };
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
 
         public void Dispose()
         {
-            _cts.Cancel();
-            _cts.Dispose();
-            _pipe.Writer.Complete();
-            _pipe.Reader.Complete();
+            try
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+                _pipe.Writer.Complete();
+                _pipe.Reader.Complete();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
         }
     }
 }
