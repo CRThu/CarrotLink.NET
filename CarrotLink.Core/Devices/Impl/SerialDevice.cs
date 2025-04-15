@@ -86,53 +86,53 @@ namespace CarrotLink.Core.Devices.Impl
             int bytesRead;
 
             // 异步实现
-            try
-            {
-                //var timeoutToken = CreateTimeoutToken();
-                bytesRead = await _serialPort.BaseStream
-               .ReadAsync(buffer, _cts.Token)
-               .ConfigureAwait(false);
-                TotalReceivedBytes += bytesRead;
-                return bytesRead;
-            }
-            catch (OperationCanceledException ex)
-            {
-                Console.WriteLine($"[INFO]: SerialDevice throwed OperationCanceledException");
-                return 0;
-                // 正常取消操作，无需处理
-            }
-            catch (IOException ex) when (ex.HResult == 995) // ERROR_OPERATION_ABORTED
-            {
-                Console.WriteLine($"[INFO]: SerialDevice throwed IOException, ex.HResult == 995");
-                Console.WriteLine(ex);
-                return 0;
-                // 处理因取消导致的 IOException
-            }
-            finally
-            {
-            }
-
-            // 同步实现
-            //byte[] localBuffer = new byte[buffer.Length];
-
-            //lock (_lock_r)
+            //try
             //{
-            //    try
-            //    {
-            //        bytesRead = _serialPort.Read(localBuffer, 0, localBuffer.Length);
-            //    }
-            //    catch (TimeoutException ex)
-            //    {
-            //        //Console.WriteLine(ex);
-            //        bytesRead = 0;
-            //    }
+            //    //var timeoutToken = CreateTimeoutToken();
+            //    bytesRead = await _serialPort.BaseStream
+            //   .ReadAsync(buffer, _cts.Token)
+            //   .ConfigureAwait(false);
             //    TotalReceivedBytes += bytesRead;
+            //    return bytesRead;
+            //}
+            //catch (OperationCanceledException ex)
+            //{
+            //    Console.WriteLine($"[INFO]: SerialDevice throwed OperationCanceledException");
+            //    return 0;
+            //    // 正常取消操作，无需处理
+            //}
+            //catch (IOException ex) when (ex.HResult == 995) // ERROR_OPERATION_ABORTED
+            //{
+            //    Console.WriteLine($"[INFO]: SerialDevice throwed IOException, ex.HResult == 995");
+            //    Console.WriteLine(ex);
+            //    return 0;
+            //    // 处理因取消导致的 IOException
+            //}
+            //finally
+            //{
             //}
 
-            //localBuffer.AsMemory(0, bytesRead).CopyTo(buffer);
-            //await Task.CompletedTask;
+            // 同步实现
+            byte[] localBuffer = new byte[buffer.Length];
 
-            //return bytesRead;
+            lock (_lock_r)
+            {
+                try
+                {
+                    bytesRead = _serialPort.Read(localBuffer, 0, localBuffer.Length);
+                }
+                catch (TimeoutException ex)
+                {
+                    //Console.WriteLine(ex);
+                    bytesRead = 0;
+                }
+                TotalReceivedBytes += bytesRead;
+            }
+
+            localBuffer.AsMemory(0, bytesRead).CopyTo(buffer);
+            await Task.CompletedTask;
+
+            return bytesRead;
         }
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> data)
@@ -146,11 +146,11 @@ namespace CarrotLink.Core.Devices.Impl
             // 异步实现
             //try
             //{
-            var timeoutToken = CreateTimeoutToken();
-            await _serialPort.BaseStream
-                .WriteAsync(data, _cts.Token)
-                .ConfigureAwait(false);
-            TotalSentBytes += data.Length;
+            //var timeoutToken = CreateTimeoutToken();
+            //await _serialPort.BaseStream
+            //    .WriteAsync(data, _cts.Token)
+            //    .ConfigureAwait(false);
+            //TotalSentBytes += data.Length;
             //}
             //catch (Exception ex)
             //{
@@ -159,15 +159,15 @@ namespace CarrotLink.Core.Devices.Impl
 
 
             // 同步实现
-            //byte[] localBuffer = data.ToArray();
+            byte[] localBuffer = data.ToArray();
 
-            //lock (_lock_w)
-            //{
-            //    _serialPort.Write(localBuffer, 0, localBuffer.Length);
-            //    TotalSentBytes += data.Length;
-            //}
+            lock (_lock_w)
+            {
+                _serialPort.Write(localBuffer, 0, localBuffer.Length);
+                TotalSentBytes += data.Length;
+            }
 
-            //await Task.CompletedTask;
+            await Task.CompletedTask;
 
         }
 
