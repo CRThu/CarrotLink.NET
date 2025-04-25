@@ -73,16 +73,16 @@ namespace CarrotLink.Core.Services.Device
         /// <returns></returns>
         public async Task WriteAsync(IPacket packet)
         {
-            try
-            {
+            //try
+            //{
                 byte[] data = packet.Pack(_protocol);
                 await _device.WriteAsync(data);
                 TotalBytesSent += data.Length;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex);
+            //}
         }
 
         private async Task<byte[]> ReadImplAsync()
@@ -116,15 +116,15 @@ namespace CarrotLink.Core.Services.Device
         // 手动触发模式
         public async Task<byte[]> ManualReadAsync()
         {
-            try
-            {
+            //try
+            //{
                 return await ReadImplAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                return Array.Empty<byte>();
-            }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex);
+            //    return Array.Empty<byte>();
+            //}
         }
 
         // 定时轮询模式

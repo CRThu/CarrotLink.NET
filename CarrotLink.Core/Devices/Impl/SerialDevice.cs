@@ -11,7 +11,7 @@ using CarrotLink.Core.Devices.Interfaces;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    public class SerialDevice : DeviceBase<SerialConfiguration>, IEventTriggerDevice
+    public class SerialDevice : DeviceBase<SerialConfiguration>/*, IEventTriggerDevice*/
     {
         /// <summary>
         /// 驱动层实现
@@ -23,11 +23,12 @@ namespace CarrotLink.Core.Devices.Impl
 
         public SerialDevice(SerialConfiguration config) : base(config) { }
 
-        public event EventHandler<byte[]>? DataReceived;
+        //public event EventHandler<byte[]>? DataReceived;
 
         public override async Task ConnectAsync()
         {
-            if (IsConnected) return;
+            if (IsConnected)
+                return;
 
             _serialPort = new SerialPort(
                 portName: Config.PortName,
@@ -40,22 +41,24 @@ namespace CarrotLink.Core.Devices.Impl
             _serialPort.WriteBufferSize = 16 * 1024 * 1024;
 
             // ch343 may error when setting -1
-            _serialPort.ReadTimeout = int.MaxValue;
-            _serialPort.WriteTimeout = int.MaxValue;
+            //_serialPort.ReadTimeout = int.MaxValue;
+            //_serialPort.WriteTimeout = int.MaxValue;
+            _serialPort.ReadTimeout = -1;
+            _serialPort.WriteTimeout = -1;
 
-            if (Config.UseHardwareEvent)
-            {
-                _serialPort.ReceivedBytesThreshold = 1; // 重要：收到1字节即触发
-                _serialPort.DataReceived += OnSerialDataReceived;
-            }
-
-            _serialPort.Open();
-            IsConnected = true;
+            //if (Config.UseHardwareEvent)
+            //{
+            //    _serialPort.ReceivedBytesThreshold = 1; // 重要：收到1字节即触发
+            //    _serialPort.DataReceived += OnSerialDataReceived;
+            //}
 
             TotalSentBytes = 0;
             TotalReceivedBytes = 0;
 
-            await Task.CompletedTask;
+            _serialPort.Open();
+            IsConnected = true;
+
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         public override async Task DisconnectAsync()
@@ -65,10 +68,10 @@ namespace CarrotLink.Core.Devices.Impl
 
             if (_serialPort != null && _serialPort.IsOpen)
             {
-                if (Config.UseHardwareEvent)
-                {
-                    _serialPort.DataReceived -= OnSerialDataReceived;
-                }
+                //if (Config.UseHardwareEvent)
+                //{
+                //    _serialPort.DataReceived -= OnSerialDataReceived;
+                //}
 
                 _serialPort.Close();
                 IsConnected = false;
@@ -81,7 +84,8 @@ namespace CarrotLink.Core.Devices.Impl
             if (_serialPort == null)
                 throw new InvalidOperationException("Device not connected");
 
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
+            if (!IsConnected)
+                throw new InvalidOperationException("Not connected");
 
             int bytesRead;
 
@@ -140,7 +144,8 @@ namespace CarrotLink.Core.Devices.Impl
             if (_serialPort == null)
                 throw new InvalidOperationException("Device not connected");
 
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
+            if (!IsConnected)
+                throw new InvalidOperationException("Not connected");
 
 
             // 异步实现
@@ -171,27 +176,27 @@ namespace CarrotLink.Core.Devices.Impl
 
         }
 
-        private void OnSerialDataReceived(object sender, SerialDataReceivedEventArgs e)
-        {
-            try
-            {
-                if (!Config.UseHardwareEvent) return;
-                if (_serialPort == null || !_serialPort.IsOpen) return;
+        //private void OnSerialDataReceived(object sender, SerialDataReceivedEventArgs e)
+        //{
+        //    try
+        //    {
+        //        if (!Config.UseHardwareEvent) return;
+        //        if (_serialPort == null || !_serialPort.IsOpen) return;
 
-                lock (_lock_r)
-                {
-                    var bytesToRead = _serialPort.BytesToRead;
-                    if (bytesToRead == 0) return;
+        //        lock (_lock_r)
+        //        {
+        //            var bytesToRead = _serialPort.BytesToRead;
+        //            if (bytesToRead == 0) return;
 
-                    var buffer = new byte[bytesToRead];
-                    _serialPort.Read(buffer, 0, bytesToRead);
-                    DataReceived?.Invoke(this, buffer);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-        }
+        //            var buffer = new byte[bytesToRead];
+        //            _serialPort.Read(buffer, 0, bytesToRead);
+        //            DataReceived?.Invoke(this, buffer);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex);
+        //    }
+        //}
     }
 }
