@@ -16,9 +16,9 @@ namespace CarrotLink.Core.Devices.Impl
             get
             {
                 if (_writePosition >= _readPosition)
-                    return _buffer.Length - _writePosition + _readPosition;
+                    return _buffer.Length - _writePosition + _readPosition - 1;
                 else
-                    return _readPosition - _writePosition;
+                    return _readPosition - _writePosition - 1;
             }
         }
 
