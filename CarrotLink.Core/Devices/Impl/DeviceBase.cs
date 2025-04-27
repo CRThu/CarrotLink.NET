@@ -30,12 +30,12 @@ namespace CarrotLink.Core.Devices.Impl
             return cts.Token;
         }
 
-        public abstract Task ConnectAsync();
-        public abstract Task DisconnectAsync();
+        public abstract Task ConnectAsync(CancellationToken cancellationToken = default);
+        public abstract Task DisconnectAsync(CancellationToken cancellationToken = default);
 
-        public abstract Task<int> ReadAsync(Memory<byte> buffer);
+        public abstract Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default);
 
-        public abstract Task WriteAsync(ReadOnlyMemory<byte> data);
+        public abstract Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default);
 
         public virtual void Dispose() => DisconnectAsync().Wait();
     }

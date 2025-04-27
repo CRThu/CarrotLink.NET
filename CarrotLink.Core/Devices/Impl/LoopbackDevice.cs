@@ -7,71 +7,102 @@ namespace CarrotLink.Core.Devices.Impl
     public class LoopbackDevice : DeviceBase<LoopbackConfiguration>
     {
         private byte[] _buffer;
-        private int _bufferSize;
         private int _readPosition;
         private int _writePosition;
         private readonly object _lock = new object();
 
+        private int FreeBytesLength
+        {
+            get
+            {
+                if (_writePosition >= _readPosition)
+                    return _buffer.Length - _writePosition + _readPosition;
+                else
+                    return _readPosition - _writePosition;
+            }
+        }
+
         public LoopbackDevice(LoopbackConfiguration config) : base(config)
         {
-            _bufferSize = 16 * 1024 * 1024;
-            _buffer = new byte[_bufferSize];
+            _buffer = new byte[config.BufferSize];
         }
 
-        public override Task ConnectAsync()
+        public override async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             IsConnected = true;
-            return Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public override Task DisconnectAsync()
+        public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             IsConnected = false;
-            return Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public override Task<int> ReadAsync(Memory<byte> buffer)
+        public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (!IsConnected)
                 throw new InvalidOperationException("Device is not connected");
 
-            int bytesRead = 0;
+            int bytesRead;
             lock (_lock)
             {
-                while (bytesRead < buffer.Length)
+                int bytesAvailable = _writePosition - _readPosition;
+                if (bytesAvailable < 0)
+                    bytesAvailable += _buffer.Length;
+                bytesRead = Math.Min(bytesAvailable, buffer.Length);
+                if (bytesRead > 0)
                 {
-                    int localReadPosition = _readPosition;
-                    int localWritePosition = _writePosition;
+                    var firstSegmentLength = Math.Min(bytesRead, _buffer.Length - _readPosition);
+                    var firstSegment = new ReadOnlyMemory<byte>(_buffer, _readPosition, firstSegmentLength);
+                    firstSegment.CopyTo(buffer.Slice(0, firstSegmentLength));
 
-                    if (localReadPosition == localWritePosition)
-                        break;
+                    if (firstSegmentLength < bytesRead)
+                    {
+                        var secondSegmentLength = bytesRead - firstSegmentLength;
+                        var secondSegment = new ReadOnlyMemory<byte>(_buffer, 0, secondSegmentLength);
+                        secondSegment.CopyTo(buffer.Slice(firstSegmentLength, secondSegmentLength));
+                    }
 
-                    buffer.Span[bytesRead++] = _buffer[localReadPosition];
-                    _readPosition = (localReadPosition + 1) % _bufferSize;
+                    _readPosition = (_readPosition + bytesRead) % _buffer.Length;
                 }
-            }
 
-            TotalReceivedBytes += bytesRead;
-            return Task.FromResult(bytesRead);
+                TotalReceivedBytes += bytesRead;
+            }
+            return await Task.FromResult(bytesRead).ConfigureAwait(false);
         }
 
-        public override Task WriteAsync(ReadOnlyMemory<byte> data)
+        public override async Task WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (!IsConnected)
                 throw new InvalidOperationException("Device is not connected");
 
             lock (_lock)
             {
-                foreach (var b in data.Span)
-                {
-                    int localWritePosition = _writePosition;
-                    _buffer[localWritePosition] = b;
-                    _writePosition = (localWritePosition + 1) % _bufferSize;
-                }
-            }
+                int bytesWritten = 0;
+                int bytesRemaining = Math.Min(buffer.Length, FreeBytesLength);
 
-            TotalSentBytes += data.Length;
-            return Task.CompletedTask;
+                var firstSegmentLength = Math.Min(bytesRemaining, _buffer.Length - _writePosition);
+                if (firstSegmentLength > 0)
+                {
+                    var firstSegment = new Memory<byte>(_buffer, _writePosition, firstSegmentLength);
+                    buffer.Slice(0, firstSegmentLength).CopyTo(firstSegment);
+                    _writePosition = (_writePosition + firstSegmentLength) % _buffer.Length;
+                    bytesWritten += firstSegmentLength;
+                }
+
+                if (bytesWritten < bytesRemaining)
+                {
+                    var secondSegmentLength = bytesRemaining - bytesWritten;
+                    var secondSegment = new Memory<byte>(_buffer, 0, secondSegmentLength);
+                    buffer.Slice(bytesWritten, secondSegmentLength).CopyTo(secondSegment);
+                    _writePosition = (_writePosition + secondSegmentLength) % _buffer.Length;
+                    bytesWritten += secondSegmentLength;
+
+                }
+                TotalSentBytes += bytesWritten;
+            }
+            await Task.CompletedTask.ConfigureAwait(false);
         }
     }
 }

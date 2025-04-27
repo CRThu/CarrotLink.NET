@@ -15,6 +15,7 @@ using CarrotLink.Core.Devices.Library;
 
 namespace CarrotLink.Core.Devices.Impl
 {
+    /*
     public class FtdiDevice : DeviceBase<FtdiConfiguration>
     {
         /// <summary>
@@ -28,7 +29,7 @@ namespace CarrotLink.Core.Devices.Impl
         {
             ftdi = new FTDI();
         }
-        public override async Task ConnectAsync()
+        public override async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             if (IsConnected) return;
 
@@ -63,7 +64,7 @@ namespace CarrotLink.Core.Devices.Impl
 
             await Task.CompletedTask;
         }
-        public override async Task DisconnectAsync()
+        public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             if (ftdi != null && ftdi.IsOpen)
             {
@@ -78,7 +79,7 @@ namespace CarrotLink.Core.Devices.Impl
         //    Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetRxBytesAvailable(ref rxQuene));
         //    return (int)rxQuene;
         //}
-        public override async Task<int> ReadAsync(Memory<byte> buffer)
+        public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (ftdi == null)
                 throw new InvalidOperationException("Device not connected");
@@ -105,7 +106,7 @@ namespace CarrotLink.Core.Devices.Impl
 
             return (int)bytesRead;
         }
-        public override async Task WriteAsync(ReadOnlyMemory<byte> data)
+        public override async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
             if (ftdi == null)
                 throw new InvalidOperationException("Device not connected");
@@ -131,4 +132,5 @@ namespace CarrotLink.Core.Devices.Impl
             await Task.CompletedTask;
         }
     }
+    */
 }

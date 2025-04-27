@@ -15,9 +15,9 @@ namespace CarrotLink.Core.Devices.Interfaces
         public long TotalReceivedBytes { get; }
         public long TotalSentBytes { get; }
 
-        Task ConnectAsync();
-        Task DisconnectAsync();
-        Task<int> ReadAsync(Memory<byte> buffer);
-        Task WriteAsync(ReadOnlyMemory<byte> data);
+        Task ConnectAsync(CancellationToken cancellationToken = default);
+        Task DisconnectAsync(CancellationToken cancellationToken = default);
+        Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default);
+        Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default);
     }
 }
