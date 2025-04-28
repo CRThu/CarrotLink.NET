@@ -12,9 +12,18 @@ using CarrotLink.Core.Devices.Interfaces;
 using System.IO.Ports;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
 
 namespace CarrotLink.Client
 {
+    public class CommContext
+    {
+        public Task ServiceTask;
+        public IDevice Device;
+        public DeviceService Service;
+        public MemoryStorage Storage;
+    }
+
     internal class Program
     {
         static async Task Main(string[] args)
@@ -22,9 +31,16 @@ namespace CarrotLink.Client
             Console.WriteLine("[CarrotLink.Client]");
             Console.WriteLine("Hello, World!");
 
+            var context = new CommContext();
+
+            Console.WriteLine("Initialize device and service...");
+            InitializeDeviceAndServiceAsync(context);
+            Console.WriteLine("Initialize done.");
+
+
             Console.WriteLine("请选择操作:");
-            Console.WriteLine("0. 设备扫描");
-            Console.WriteLine("1. 测试数据传输");
+            Console.WriteLine("0. DiscoverAllDevices");
+            Console.WriteLine("1. LoopbackTest");
             Console.WriteLine("2. 测试通信, 读取");
             Console.WriteLine("3. 测试函数");
             var choice = Console.ReadLine();
@@ -35,10 +51,10 @@ namespace CarrotLink.Client
                     await DiscoverAllDevicesAsync();
                     break;
                 case "1":
-                    await PerformDataTransferTestAsync();
+                    await LoopbackTestAsync(context);
                     break;
                 case "2":
-                    await HandleUserInputAsync();
+                    await HandleUserInputAsync(context);
                     break;
                 case "3":
                     await TestMethod();
@@ -47,6 +63,8 @@ namespace CarrotLink.Client
                     Console.WriteLine("无效选择");
                     break;
             }
+
+            await context.Device.DisconnectAsync();
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -77,45 +95,45 @@ namespace CarrotLink.Client
             await Task.CompletedTask;
         }
 
-        private static async Task<(IDevice, DeviceService, MemoryStorage)> InitializeDeviceAndServiceAsync()
+        private static async Task InitializeDeviceAndServiceAsync(CommContext context)
         {
             // 示例：完整设备操作流程
-            var config = new SerialConfiguration
-            {
-                DeviceId = "Serial-COM17",
-                PortName = "COM17",
-                BaudRate = 115200,
-            };
-            var device = new SerialDevice(config);
+            //var config = new SerialConfiguration
+            //{
+            //    DeviceId = "Serial-COM17",
+            //    PortName = "COM17",
+            //    BaudRate = 115200,
+            //};
+            //var device = new SerialDevice(config);
 
-            //var device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
-            await device.ConnectAsync();
+            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            await context.Device.ConnectAsync();
 
             var protocol = new RawAsciiProtocol();
-            var storage = new MemoryStorage();
+            context.Storage = new MemoryStorage();
 
             // 创建带线程安全的存储管道
-            var service = new DeviceService(device, protocol, new ConcurrentStorageDecorator(storage));
-            _ = service.StartProcessingAsync();
+            context.Service = new DeviceService(context.Device, protocol, new ConcurrentStorageDecorator(context.Storage));
+            _ = context.Service.StartProcessingAsync();
 
-            service.StartAutoPolling(250);
+            _ = context.Service.StartAutoPolling(250);
 
-            return (device, service, storage);
+            // wait for running
+
+            context.ServiceTask = Task.CompletedTask;
+
+            // TODO
+            await Task.CompletedTask;
         }
 
-        private static async Task PerformDataTransferTestAsync()
+        private static async Task LoopbackTestAsync(CommContext context)
         {
-            IDevice device;
-            DeviceService service;
-            MemoryStorage storage;
-            (device, service, storage) = await InitializeDeviceAndServiceAsync();
-
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
             int packetNum = 10000;
             for (int i = 0; i < packetNum; i++)
             {
-                await service.SendAscii($"{i:D18}");
+                await context.Service.SendAscii($"{i:D18}");
                 if (i % 10000 == 0)
                     await Task.Delay(10);
             }
@@ -124,33 +142,40 @@ namespace CarrotLink.Client
 
             Console.WriteLine("Press any key to see transfer info:");
             Console.ReadKey(intercept: true);
-            Console.WriteLine($"TotalBytesReceived: {service.TotalBytesReceived}");
-            Console.WriteLine($"Device TX: {device.TotalSentBytes}, RX: {device.TotalReceivedBytes}");
+            Console.WriteLine($"TotalBytesReceived: {context.Service.TotalBytesReceived}");
+            Console.WriteLine($"Device TX: {context.Device.TotalSentBytes}, RX: {context.Device.TotalReceivedBytes}");
 
             // 比较数据是否正确
             var sentData = Enumerable.Range(0, packetNum).Select(i => $"{i:D18}").ToArray();
-            var receivedData = storage.GetStoredData().ToArray();
+            var receivedData = context.Storage.GetStoredData().ToArray();
 
-            for (int i = 0; i < sentData.Length; i++)
+            if (sentData.Length != receivedData.Length)
+                Console.WriteLine($"Sent bytes != received bytes.");
+            else
             {
-                string send = sentData[i];
-                string recv = (receivedData[i] as AsciiPacket).Payload;
-                if (send != recv)
-                    Console.WriteLine($"Sent: {send}, Received: {recv}");
+                int maxErrorCount = 0;
+                for (int i = 0; i < sentData.Length; i++)
+                {
+                    string send = sentData[i];
+                    string? recv = (receivedData[i] as AsciiPacket)?.Payload;
+                    if (send != recv)
+                    {
+                        maxErrorCount++;
+                        Console.WriteLine($"ERROR DATA: Sent: {send}, Received: {recv}");
+                    }
+                    if (maxErrorCount >= 20)
+                    {
+                        Console.WriteLine("Only display 20 items.");
+                        break;
+                    }
+                }
             }
-            bool isDataCorrect = sentData.SequenceEqual(receivedData.Select(p => (p as AsciiPacket).Payload));
-            Console.WriteLine($"数据是否正确: {isDataCorrect}");
 
-            await device.DisconnectAsync();
+            await Task.CompletedTask;
         }
 
-        private static async Task HandleUserInputAsync()
+        private static async Task HandleUserInputAsync(CommContext context)
         {
-            IDevice device;
-            DeviceService service;
-            MemoryStorage storage;
-            (device, service, storage) = await InitializeDeviceAndServiceAsync();
-
             // 循环读取用户输入并发送
             Console.WriteLine("Press exit to end transfer");
             while (true)
@@ -160,20 +185,20 @@ namespace CarrotLink.Client
                 {
                     break;
                 }
-                await service.SendAscii(line!.ToString());
+                await context.Service.SendAscii(line!.ToString());
                 Console.WriteLine($"Sent: {line}");
 
                 await Task.Delay(500);
 
-                var pkt = storage.Read();
+                var pkt = context.Storage.Read();
                 if (pkt != null)
                     Console.WriteLine($"Received: {(pkt as AsciiPacket)}");
             }
 
             // 导出最终数据
-            await storage.ExportAsJsonAsync("data.json");
+            await context.Storage.ExportAsJsonAsync("data.json");
 
-            await device.DisconnectAsync();
+            await context.Device.DisconnectAsync();
         }
 
         private static async Task TestMethod()

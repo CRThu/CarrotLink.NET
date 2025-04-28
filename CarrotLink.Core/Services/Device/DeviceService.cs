@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -25,7 +26,6 @@ namespace CarrotLink.Core.Services.Device
 
         // pipe for proc
         private readonly Pipe _pipe = new Pipe();
-        private CancellationTokenSource _cts = new CancellationTokenSource();
 
         // timer for read
         private PeriodicTimer? _pollingTimer;
@@ -40,30 +40,35 @@ namespace CarrotLink.Core.Services.Device
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
 
-        public async Task StartProcessingAsync()
+        public async Task StartProcessingAsync(CancellationToken cancellationToken = default)
         {
             PipeReader? reader = _pipe.Reader;
-            try
+            //try
+            //{
+            while (!cancellationToken.IsCancellationRequested)
             {
-                while (!_cts.IsCancellationRequested)
+                // read when data received
+                ReadResult readResult = await reader.ReadAsync(cancellationToken);
+                var buffer = readResult.Buffer;
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    ReadResult readResult = await reader.ReadAsync(_cts.Token);
-                    var buffer = readResult.Buffer;
-                    while (true)
-                    {
-                        bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
-                        if (!parsed || packet == null)
-                            break;
+                    // parse until buffer has no complete packets
+                    bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
+                    if (!parsed || packet == null)
+                        break;
 
-                        await _storage.SaveAsync(packet);
-                    }
-                    reader.AdvanceTo(buffer.Start, buffer.End);
+                    // save to storage
+                    await _storage.SaveAsync(packet);
                 }
+
+                // set examined position
+                reader.AdvanceTo(buffer.Start, buffer.End);
             }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
-            }
+            //}
+            //catch (OperationCanceledException)
+            //{
+            //    Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
+            //}
         }
 
         /// <summary>
@@ -71,13 +76,13 @@ namespace CarrotLink.Core.Services.Device
         /// </summary>
         /// <param name="packet"></param>
         /// <returns></returns>
-        public async Task WriteAsync(IPacket packet)
+        public async Task WriteAsync(IPacket packet, CancellationToken cancellationToken = default)
         {
             //try
             //{
-                byte[] data = packet.Pack(_protocol);
-                await _device.WriteAsync(data);
-                TotalBytesSent += data.Length;
+            byte[] data = packet.Pack(_protocol);
+            await _device.WriteAsync(data);
+            TotalBytesSent += data.Length;
             //}
             //catch (Exception ex)
             //{
@@ -85,16 +90,16 @@ namespace CarrotLink.Core.Services.Device
             //}
         }
 
-        private async Task<byte[]> ReadImplAsync()
+        private async Task<byte[]> ReadImplAsync(CancellationToken cancellationToken = default)
         {
             //try
             //{
             var buffer = new byte[_device.Config.BufferSize];
-            int bytesRead = await _device.ReadAsync(buffer.AsMemory());
+            int bytesRead = await _device.ReadAsync(buffer.AsMemory(), cancellationToken);
             var data = buffer.Take(bytesRead).ToArray();
             if (bytesRead > 0)
             {
-                var result = await _pipe.Writer.WriteAsync(data, _cts.Token);
+                var result = await _pipe.Writer.WriteAsync(data, cancellationToken);
 
                 TotalBytesReceived += bytesRead;
                 Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
@@ -114,11 +119,11 @@ namespace CarrotLink.Core.Services.Device
         }
 
         // 手动触发模式
-        public async Task<byte[]> ManualReadAsync()
+        public async Task<byte[]> ManualReadAsync(CancellationToken cancellationToken = default)
         {
             //try
             //{
-                return await ReadImplAsync();
+            return await ReadImplAsync(cancellationToken);
             //}
             //catch (Exception ex)
             //{
@@ -128,90 +133,90 @@ namespace CarrotLink.Core.Services.Device
         }
 
         // 定时轮询模式
-        public void StartAutoPolling(int intervalMs)
+        public Task StartAutoPolling(int intervalMs, CancellationToken cancellationToken = default)
         {
-            try
-            {
-                if (_pollingTimer != null)
-                    throw new InvalidOperationException("Polling is already active");
+            //try
+            //{
+            if (_pollingTimer != null)
+                throw new InvalidOperationException("Polling is already active");
 
-                _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
-                _ = Task.Run(async () => {
-                    while (await _pollingTimer.WaitForNextTickAsync(_cts.Token))
-                    {
-                        try
-                        {
-                            Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
-                            var data = await ReadImplAsync();
-                            Debug.WriteLine($"[PeriodicTimer]: READ DONE");
-                        }
-                        catch (Exception ex)
-                        {
-                            Dispose();
-                            Console.WriteLine($"HRESULT:0x{ex.HResult:X8}");
-                            Console.WriteLine(ex);
-                            break;
-                        }
-                    }
-                });
-            }
-            catch (Exception ex)
+            _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
+            return Task.Run(async () =>
             {
-                Console.WriteLine(ex);
-            }
+                while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
+                {
+                    //try
+                    //{
+                        Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
+                        var data = await ReadImplAsync(cancellationToken);
+                    Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    Dispose();
+                    //    Console.WriteLine($"HRESULT:0x{ex.HResult:X8}");
+                    //    Console.WriteLine(ex);
+                    //    break;
+                    //}
+                }
+            }, cancellationToken);
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex);
+            //}
         }
 
 
         // 事件触发模式（需设备支持硬件中断）
-        private bool _isProcessing = false;
-        private readonly object _lockObj = new object();
+        //private bool _isProcessing = false;
+        //private readonly object _lockObj = new object();
 
-        public void RegisterEventTrigger(Action<byte[]> callback)
-        {
-            try
-            {
-                if (_device is not IEventTriggerDevice eventDevice)
-                    throw new NotSupportedException("Device does not support event triggering");
+        //public void RegisterEventTrigger(Action<byte[]> callback)
+        //{
+        //    try
+        //    {
+        //        if (_device is not IEventTriggerDevice eventDevice)
+        //            throw new NotSupportedException("Device does not support event triggering");
 
-                eventDevice.DataReceived += (sender, data) => {
-                    if (data.Length > 0)
-                    {
-                        lock (_lockObj)
-                        {
-                            if (_isProcessing)
-                                return;
+        //        eventDevice.DataReceived += (sender, data) =>
+        //        {
+        //            if (data.Length > 0)
+        //            {
+        //                lock (_lockObj)
+        //                {
+        //                    if (_isProcessing)
+        //                        return;
 
-                            _isProcessing = true;
-                        }
+        //                    _isProcessing = true;
+        //                }
 
-                        try
-                        {
-                            callback(data);
-                            TotalBytesReceived += data.Length;
-                            Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
-                        }
-                        finally
-                        {
-                            lock (_lockObj)
-                            {
-                                _isProcessing = false;
-                            }
-                        }
-                    }
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-        }
+        //                try
+        //                {
+        //                    callback(data);
+        //                    TotalBytesReceived += data.Length;
+        //                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
+        //                }
+        //                finally
+        //                {
+        //                    lock (_lockObj)
+        //                    {
+        //                        _isProcessing = false;
+        //                    }
+        //                }
+        //            }
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex);
+        //    }
+        //}
 
         public void Dispose()
         {
             try
             {
-                _cts.Cancel();
-                _cts.Dispose();
                 _pipe.Writer.Complete();
                 _pipe.Reader.Complete();
             }
