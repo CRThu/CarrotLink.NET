@@ -17,9 +17,9 @@ namespace CarrotLink.Core.Services.Storage
             _innerStorage = innerStorage ?? throw new ArgumentNullException(nameof(innerStorage));
         }
 
-        public IPacket? Read()
+        public bool TryRead(out IPacket? packet)
         {
-            return _innerStorage.Read();
+            return _innerStorage.TryRead(out packet);
         }
 
         public async Task SaveAsync(IPacket? data)

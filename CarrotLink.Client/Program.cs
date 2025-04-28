@@ -18,7 +18,6 @@ namespace CarrotLink.Client
 {
     public class CommContext
     {
-        public Task ServiceTask;
         public IDevice Device;
         public DeviceService Service;
         public MemoryStorage Storage;
@@ -31,40 +30,77 @@ namespace CarrotLink.Client
             Console.WriteLine("[CarrotLink.Client]");
             Console.WriteLine("Hello, World!");
 
-            var context = new CommContext();
+            Console.WriteLine("Discovering device...");
+            await DiscoverAllDevicesAsync();
+            Console.WriteLine("Discovering done.");
 
-            Console.WriteLine("Initialize device and service...");
-            InitializeDeviceAndServiceAsync(context);
+
+            var context = new CommContext();
+            CancellationTokenSource cts = new CancellationTokenSource();
+            Console.WriteLine("Initialize device...");
+
+            // 示例：完整设备操作流程
+            //var config = new SerialConfiguration
+            //{
+            //    DeviceId = "Serial-COM17",
+            //    PortName = "COM17",
+            //    BaudRate = 115200,
+            //};
+            //var device = new SerialDevice(config);
+
+            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            await context.Device.ConnectAsync();
             Console.WriteLine("Initialize done.");
 
+            Console.WriteLine("Initialize service...");
+            var protocol = new RawAsciiProtocol();
+            context.Storage = new MemoryStorage();
 
-            Console.WriteLine("请选择操作:");
-            Console.WriteLine("0. DiscoverAllDevices");
-            Console.WriteLine("1. LoopbackTest");
-            Console.WriteLine("2. 测试通信, 读取");
-            Console.WriteLine("3. 测试函数");
-            var choice = Console.ReadLine();
+            context.Service = new DeviceService(context.Device, protocol, new ConcurrentStorageDecorator(context.Storage));
+            Task procTask = context.Service.StartProcessingAsync(cts.Token);
+            Task pollTask = context.Service.StartAutoPolling(250, cts.Token);
+            Console.WriteLine("Initialize done...");
 
-            switch (choice)
+            try
             {
-                case "0":
-                    await DiscoverAllDevicesAsync();
-                    break;
-                case "1":
-                    await LoopbackTestAsync(context);
-                    break;
-                case "2":
-                    await HandleUserInputAsync(context);
-                    break;
-                case "3":
-                    await TestMethod();
-                    break;
-                default:
-                    Console.WriteLine("无效选择");
-                    break;
+                while (true)
+                {
+                    Console.WriteLine("请选择操作:");
+                    Console.WriteLine("1. LoopbackTest");
+                    Console.WriteLine("2. EnterCommands");
+                    Console.WriteLine("3. DebugTest");
+                    Console.WriteLine("q. Exit");
+                    var k = Console.ReadKey();
+                    if (k.KeyChar == 'q')
+                        break;
+                    Console.WriteLine();
+                    switch (k.KeyChar)
+                    {
+                        case '1':
+                            await LoopbackTestAsync(context);
+                            break;
+                        case '2':
+                            await EnterCommandsAsync(context);
+                            break;
+                        case '3':
+                            await DebugTest();
+                            break;
+                        default:
+                            Console.WriteLine("无效选择");
+                            break;
+                    }
+                }
             }
+            finally
+            {
+                cts.Cancel();
+                await Task.WhenAll(procTask, pollTask);
 
-            await context.Device.DisconnectAsync();
+                await context.Device.DisconnectAsync();
+                cts.Dispose();
+                context.Service.Dispose();
+                context.Device.Dispose();
+            }
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -92,37 +128,6 @@ namespace CarrotLink.Client
                 Console.WriteLine("No devices were found.");
             }
 
-            await Task.CompletedTask;
-        }
-
-        private static async Task InitializeDeviceAndServiceAsync(CommContext context)
-        {
-            // 示例：完整设备操作流程
-            //var config = new SerialConfiguration
-            //{
-            //    DeviceId = "Serial-COM17",
-            //    PortName = "COM17",
-            //    BaudRate = 115200,
-            //};
-            //var device = new SerialDevice(config);
-
-            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
-            await context.Device.ConnectAsync();
-
-            var protocol = new RawAsciiProtocol();
-            context.Storage = new MemoryStorage();
-
-            // 创建带线程安全的存储管道
-            context.Service = new DeviceService(context.Device, protocol, new ConcurrentStorageDecorator(context.Storage));
-            _ = context.Service.StartProcessingAsync();
-
-            _ = context.Service.StartAutoPolling(250);
-
-            // wait for running
-
-            context.ServiceTask = Task.CompletedTask;
-
-            // TODO
             await Task.CompletedTask;
         }
 
@@ -174,10 +179,29 @@ namespace CarrotLink.Client
             await Task.CompletedTask;
         }
 
-        private static async Task HandleUserInputAsync(CommContext context)
+        private static async Task EnterCommandsAsync(CommContext context)
         {
+            CancellationTokenSource cts = new CancellationTokenSource();
+            object _lock = new();
+
+            var readTask = new Task(() =>
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    bool hasPkt = context.Storage.TryRead(out var pkt);
+                    if (hasPkt)
+                    {
+                        lock (_lock)
+                        {
+                            Console.WriteLine($"Received: {pkt}");
+                        }
+                    }
+                    Task.Delay(100);
+                }
+            }, cts.Token);
+
             // 循环读取用户输入并发送
-            Console.WriteLine("Press exit to end transfer");
+            Console.WriteLine("enter commands or 'exit' to end transfer");
             while (true)
             {
                 var line = Console.ReadLine();
@@ -185,63 +209,62 @@ namespace CarrotLink.Client
                 {
                     break;
                 }
+
                 await context.Service.SendAscii(line!.ToString());
-                Console.WriteLine($"Sent: {line}");
-
-                await Task.Delay(500);
-
-                var pkt = context.Storage.Read();
-                if (pkt != null)
-                    Console.WriteLine($"Received: {(pkt as AsciiPacket)}");
+                lock (_lock)
+                {
+                    Console.WriteLine($"Sent: {(line == "" ? "<empty>" : line)}");
+                }
             }
+
+            cts.Cancel();
 
             // 导出最终数据
             await context.Storage.ExportAsJsonAsync("data.json");
-
-            await context.Device.DisconnectAsync();
         }
 
-        private static async Task TestMethod()
+        private static async Task DebugTest()
         {
-            try
-            {
-                SerialPort serialPort = new SerialPort("COM1");
+            //try
+            //{
+            //    SerialPort serialPort = new SerialPort("COM1");
 
-                serialPort.Open();
+            //    serialPort.Open();
 
-                var buffer = new byte[4096];
-                // 1: timeout: throw
-                //serialPort.ReadTimeout = 1000;
-                //var b = serialPort.Read(buffer, 0, buffer.Length);
+            //    var buffer = new byte[4096];
+            //    // 1: timeout: throw
+            //    //serialPort.ReadTimeout = 1000;
+            //    //var b = serialPort.Read(buffer, 0, buffer.Length);
 
-                // 2: timeout: throw
-                //serialPort.ReadTimeout = 1000;
-                //var b = serialPort.BaseStream.Read(buffer, 0, buffer.Length);
+            //    // 2: timeout: throw
+            //    //serialPort.ReadTimeout = 1000;
+            //    //var b = serialPort.BaseStream.Read(buffer, 0, buffer.Length);
 
-                // 3: timeout:
-                int b = 0;
-                CancellationTokenSource cts = new(1000);
-                //serialPort.ReadTimeout = 0; // 无效
-                var readTask = serialPort.BaseStream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
-                await Task.Delay(2000);
-                serialPort.DiscardInBuffer();
+            //    // 3: timeout:
+            //    int b = 0;
+            //    CancellationTokenSource cts = new(1000);
+            //    //serialPort.ReadTimeout = 0; // 无效
+            //    var readTask = serialPort.BaseStream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+            //    await Task.Delay(2000);
+            //    serialPort.DiscardInBuffer();
 
-                var complTask = await Task.WhenAny(readTask, Task.Delay(5000));
-                if (complTask == readTask)
-                {
-                    b = readTask.Result;
-                }
-                else
-                {
-                    Console.WriteLine("5000ms timeout");
-                }
+            //    var complTask = await Task.WhenAny(readTask, Task.Delay(5000));
+            //    if (complTask == readTask)
+            //    {
+            //        b = readTask.Result;
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine("5000ms timeout");
+            //    }
 
-                Console.WriteLine($"recv {b} bytes");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
+            //    Console.WriteLine($"recv {b} bytes");
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex.ToString());
+            //}
+            await Task.CompletedTask;
         }
     }
 }

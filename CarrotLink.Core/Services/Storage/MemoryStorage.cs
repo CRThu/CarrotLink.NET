@@ -16,27 +16,25 @@ namespace CarrotLink.Core.Services.Storage
 
         public long TotalStoredPackets => _storageQueue.Count;
 
-        public IPacket? Read()
+        public bool TryRead(out IPacket? packet)
         {
-            if (_storageQueue.TryDequeue(out var packet))
-                return packet;
-            return null;
+            return _storageQueue.TryDequeue(out packet);
         }
 
-        public Task SaveAsync(IPacket? packet)
+        public async Task SaveAsync(IPacket? packet)
         {
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
             _storageQueue.Enqueue(packet);
-            return Task.CompletedTask;
+            await Task.CompletedTask;
         }
 
-        public Task ExportAsJsonAsync(string path)
+        public async Task ExportAsJsonAsync(string path)
         {
             var p = _storageQueue.Select(p => p.ToString()).ToArray();
             var jsonData = JsonSerializer.Serialize(p);
-            return File.WriteAllTextAsync(path, jsonData);
+            await File.WriteAllTextAsync(path, jsonData);
         }
 
         // 辅助方法：获取内存中存储的数据

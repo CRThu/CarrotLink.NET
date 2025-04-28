@@ -43,32 +43,34 @@ namespace CarrotLink.Core.Services.Device
         public async Task StartProcessingAsync(CancellationToken cancellationToken = default)
         {
             PipeReader? reader = _pipe.Reader;
-            //try
-            //{
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                // read when data received
-                ReadResult readResult = await reader.ReadAsync(cancellationToken);
-                var buffer = readResult.Buffer;
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    // parse until buffer has no complete packets
-                    bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
-                    if (!parsed || packet == null)
-                        break;
+                    // read when data received
+                    ReadResult readResult = await reader.ReadAsync(cancellationToken);
 
-                    // save to storage
-                    await _storage.SaveAsync(packet);
+                    var buffer = readResult.Buffer;
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        // parse until buffer has no complete packets
+                        bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
+                        if (!parsed || packet == null)
+                            break;
+
+                        // save to storage
+                        await _storage.SaveAsync(packet);
+                    }
+
+                    // set examined position
+                    reader.AdvanceTo(buffer.Start, buffer.End);
                 }
-
-                // set examined position
-                reader.AdvanceTo(buffer.Start, buffer.End);
             }
-            //}
-            //catch (OperationCanceledException)
-            //{
-            //    Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
-            //}
+            catch (OperationCanceledException ex)
+            {
+                //reader.Complete(ex);
+                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
+            }
         }
 
         /// <summary>
@@ -78,93 +80,70 @@ namespace CarrotLink.Core.Services.Device
         /// <returns></returns>
         public async Task WriteAsync(IPacket packet, CancellationToken cancellationToken = default)
         {
-            //try
-            //{
             byte[] data = packet.Pack(_protocol);
             await _device.WriteAsync(data);
             TotalBytesSent += data.Length;
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine(ex);
-            //}
         }
 
         private async Task<byte[]> ReadImplAsync(CancellationToken cancellationToken = default)
         {
-            //try
-            //{
-            var buffer = new byte[_device.Config.BufferSize];
-            int bytesRead = await _device.ReadAsync(buffer.AsMemory(), cancellationToken);
-            var data = buffer.Take(bytesRead).ToArray();
-            if (bytesRead > 0)
+            PipeWriter? writer = _pipe.Writer;
+            try
             {
-                var result = await _pipe.Writer.WriteAsync(data, cancellationToken);
-
-                TotalBytesReceived += bytesRead;
-                Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
-
-                if (bytesRead == buffer.Length)
+                var buffer = new byte[_device.Config.BufferSize];
+                int bytesRead = await _device.ReadAsync(buffer.AsMemory(), cancellationToken);
+                var data = buffer.Take(bytesRead).ToArray();
+                if (bytesRead > 0)
                 {
-                    Console.WriteLine("Warning: Buffer is full, data might be lost.");
+                    var result = await writer.WriteAsync(data, cancellationToken);
+
+                    TotalBytesReceived += bytesRead;
+                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
+
+                    if (bytesRead == buffer.Length)
+                    {
+                        Console.WriteLine("Warning: Buffer is full, data might be lost.");
+                    }
                 }
+                return data;
             }
-            return data;
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine(ex);
-            //    return Array.Empty<byte>();
-            //}
+            catch (OperationCanceledException ex)
+            {
+                //writer.Complete(ex);
+                Console.WriteLine("DeviceService.ReadImplAsync() cancelled");
+                return Array.Empty<byte>();
+            }
         }
 
         // 手动触发模式
         public async Task<byte[]> ManualReadAsync(CancellationToken cancellationToken = default)
         {
-            //try
-            //{
             return await ReadImplAsync(cancellationToken);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine(ex);
-            //    return Array.Empty<byte>();
-            //}
         }
 
         // 定时轮询模式
         public Task StartAutoPolling(int intervalMs, CancellationToken cancellationToken = default)
         {
-            //try
-            //{
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
 
             _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
             return Task.Run(async () =>
             {
-                while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
+                try
                 {
-                    //try
-                    //{
+                    while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
+                    {
                         Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
                         var data = await ReadImplAsync(cancellationToken);
-                    Debug.WriteLine($"[PeriodicTimer]: READ DONE");
-                    //}
-                    //catch (Exception ex)
-                    //{
-                    //    Dispose();
-                    //    Console.WriteLine($"HRESULT:0x{ex.HResult:X8}");
-                    //    Console.WriteLine(ex);
-                    //    break;
-                    //}
+                        Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    Console.WriteLine("DeviceService.StartAutoPolling() cancelled");
                 }
             }, cancellationToken);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine(ex);
-            //}
         }
 
 
