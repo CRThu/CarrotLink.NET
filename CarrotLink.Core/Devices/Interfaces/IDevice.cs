@@ -12,8 +12,8 @@ namespace CarrotLink.Core.Devices.Interfaces
         bool IsConnected { get; }
         DeviceConfigurationBase Config { get; }
 
-        public long TotalReceivedBytes { get; }
-        public long TotalSentBytes { get; }
+        public long TotalReadBytes { get; }
+        public long TotalWriteBytes { get; }
 
         Task ConnectAsync(CancellationToken cancellationToken = default);
         Task DisconnectAsync(CancellationToken cancellationToken = default);

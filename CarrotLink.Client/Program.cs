@@ -147,7 +147,7 @@ namespace CarrotLink.Client
             Console.WriteLine("Press any key to see transfer info:");
             Console.ReadKey(intercept: true);
             Console.WriteLine($"TotalBytesReceived: {context.Service.TotalReadBytes}");
-            Console.WriteLine($"Device TX: {context.Device.TotalSentBytes}, RX: {context.Device.TotalReceivedBytes}");
+            Console.WriteLine($"Device TX: {context.Device.TotalWriteBytes}, RX: {context.Device.TotalReadBytes}");
 
             // 比较数据是否正确
             var sentData = Enumerable.Range(0, packetNum).Select(i => $"{i:D18}").ToArray();

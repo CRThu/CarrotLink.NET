@@ -67,7 +67,7 @@ namespace CarrotLink.Core.Devices.Impl
                     _readPosition = (_readPosition + bytesRead) % _buffer.Length;
                 }
 
-                TotalReceivedBytes += bytesRead;
+                _totalReadBytes += bytesRead;
             }
             return await Task.FromResult(bytesRead).ConfigureAwait(false);
         }
@@ -100,7 +100,7 @@ namespace CarrotLink.Core.Devices.Impl
                     bytesWritten += secondSegmentLength;
 
                 }
-                TotalSentBytes += bytesWritten;
+                _totalWriteBytes += bytesWritten;
             }
             await Task.CompletedTask.ConfigureAwait(false);
         }

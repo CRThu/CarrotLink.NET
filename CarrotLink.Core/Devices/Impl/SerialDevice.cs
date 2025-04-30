@@ -31,11 +31,11 @@ namespace CarrotLink.Core.Devices.Impl
                 return;
 
             _serialPort = new SerialPort(
-                portName: Config.PortName,
-                baudRate: Config.BaudRate,
-                parity: (Parity)Config.Parity,
-                dataBits: Config.DataBits,
-                stopBits: (StopBits)Config.StopBits);
+                portName: _config.PortName,
+                baudRate: _config.BaudRate,
+                parity: (Parity)_config.Parity,
+                dataBits: _config.DataBits,
+                stopBits: (StopBits)_config.StopBits);
 
             _serialPort.ReadBufferSize = 16 * 1024 * 1024;
             _serialPort.WriteBufferSize = 16 * 1024 * 1024;
@@ -52,8 +52,8 @@ namespace CarrotLink.Core.Devices.Impl
             //    _serialPort.DataReceived += OnSerialDataReceived;
             //}
 
-            TotalSentBytes = 0;
-            TotalReceivedBytes = 0;
+            _totalWriteBytes = 0;
+            _totalReadBytes = 0;
 
             _serialPort.Open();
             IsConnected = true;
@@ -130,7 +130,7 @@ namespace CarrotLink.Core.Devices.Impl
                     //Console.WriteLine(ex);
                     bytesRead = 0;
                 }
-                TotalReceivedBytes += bytesRead;
+                _totalReadBytes += bytesRead;
             }
 
             localBuffer.AsMemory(0, bytesRead).CopyTo(buffer);
@@ -169,7 +169,7 @@ namespace CarrotLink.Core.Devices.Impl
             lock (_lock_w)
             {
                 _serialPort.Write(localBuffer, 0, localBuffer.Length);
-                TotalSentBytes += data.Length;
+                _totalWriteBytes += data.Length;
             }
 
             await Task.CompletedTask;

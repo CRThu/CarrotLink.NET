@@ -11,21 +11,27 @@ namespace CarrotLink.Core.Devices.Impl
 {
     public abstract class DeviceBase<TConfig> : IDevice, IDisposable where TConfig : DeviceConfigurationBase
     {
-        public TConfig Config { get; }
+        protected TConfig _config;
+        protected long _totalReadBytes = 0;
+        protected long _totalWriteBytes = 0;
+
         public bool IsConnected { get; protected set; }
-        DeviceConfigurationBase IDevice.Config => Config;
+        public DeviceConfigurationBase Config => _config;
 
-        public long TotalReceivedBytes { get; protected set; } = 0;
-        public long TotalSentBytes { get; protected set; } = 0;
+        public long TotalReadBytes => _totalReadBytes;
+        public long TotalWriteBytes => _totalWriteBytes;
 
-        public DeviceBase(TConfig config) => Config = config;
+        public DeviceBase(TConfig config)
+        {
+            _config = config;
+        }
 
         protected CancellationToken CreateTimeoutToken()
         {
             var cts = new CancellationTokenSource();
-            if (Config.Timeout > 0)
+            if (_config.Timeout > 0)
             {
-                cts.CancelAfter(Config.Timeout);
+                cts.CancelAfter(_config.Timeout);
             }
             return cts.Token;
         }
