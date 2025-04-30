@@ -30,10 +30,15 @@ namespace CarrotLink.Core.Services.Device
         // timer for read
         private PeriodicTimer? _pollingTimer;
 
-        private int _isReading;
+        // lock flag
+        private int _isReading = 0;
+        private int _isWriting = 0;
 
-        public long TotalBytesSent { get; private set; } = 0;
-        public long TotalBytesReceived { get; private set; } = 0;
+        private long _totalWriteBytes = 0;
+        private long _totalReadBytes = 0;
+
+        public long TotalWriteBytes => _totalWriteBytes;
+        public long TotalReadBytes => _totalReadBytes;
 
         public DeviceService(IDevice device, IProtocol protocol, IDataStorage storage)
         {
@@ -79,20 +84,33 @@ namespace CarrotLink.Core.Services.Device
         /// 发送方法
         /// </summary>
         /// <param name="packet"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
         public async Task WriteAsync(IPacket packet, CancellationToken cancellationToken = default)
         {
-            byte[] data = packet.Pack(_protocol);
-            await _device.WriteAsync(data);
-            TotalBytesSent += data.Length;
+            if (cancellationToken.IsCancellationRequested)
+                return;
+            if (Interlocked.CompareExchange(ref _isWriting, 1, 0) != 0)
+                throw new InvalidOperationException("Write Operation is running");
+            try
+            {
+                byte[] data = packet.Pack(_protocol);
+                await _device.WriteAsync(data, cancellationToken);
+                Interlocked.Add(ref _totalWriteBytes, data.Length);
+            }
+            finally
+            {
+                Volatile.Write(ref _isWriting, 0);
+            }
         }
 
         private async Task<byte[]> SafeReadInternalAsync(CancellationToken cancellationToken = default)
         {
-            if(cancellationToken.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested)
                 return Array.Empty<byte>();
             if (Interlocked.CompareExchange(ref _isReading, 1, 0) != 0)
-                throw new InvalidOperationException("Reading Operation is running");
+                throw new InvalidOperationException("Read Operation is running");
             try
             {
                 return await ReadInternalAsync(cancellationToken).ConfigureAwait(false);
@@ -115,8 +133,8 @@ namespace CarrotLink.Core.Services.Device
                 {
                     var result = await writer.WriteAsync(data, cancellationToken);
 
-                    TotalBytesReceived += bytesRead;
-                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalBytesReceived} bytes");
+                    Interlocked.Add(ref _totalReadBytes, bytesRead);
+                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalReadBytes} bytes");
 
                     if (bytesRead == buffer.Length)
                     {
