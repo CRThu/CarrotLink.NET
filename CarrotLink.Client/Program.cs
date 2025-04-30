@@ -95,7 +95,6 @@ namespace CarrotLink.Client
             {
                 cts.Cancel();
                 await Task.WhenAll(procTask, pollTask);
-
                 await context.Device.DisconnectAsync();
                 cts.Dispose();
                 context.Service.Dispose();

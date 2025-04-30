@@ -30,6 +30,8 @@ namespace CarrotLink.Core.Services.Device
         // timer for read
         private PeriodicTimer? _pollingTimer;
 
+        private int _isReading;
+
         public long TotalBytesSent { get; private set; } = 0;
         public long TotalBytesReceived { get; private set; } = 0;
 
@@ -85,7 +87,23 @@ namespace CarrotLink.Core.Services.Device
             TotalBytesSent += data.Length;
         }
 
-        private async Task<byte[]> ReadImplAsync(CancellationToken cancellationToken = default)
+        private async Task<byte[]> SafeReadInternalAsync(CancellationToken cancellationToken = default)
+        {
+            if(cancellationToken.IsCancellationRequested)
+                return Array.Empty<byte>();
+            if (Interlocked.CompareExchange(ref _isReading, 1, 0) != 0)
+                throw new InvalidOperationException("Reading Operation is running");
+            try
+            {
+                return await ReadInternalAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref _isReading, 0);
+            }
+        }
+
+        private async Task<byte[]> ReadInternalAsync(CancellationToken cancellationToken = default)
         {
             PipeWriter? writer = _pipe.Writer;
             try
@@ -118,7 +136,7 @@ namespace CarrotLink.Core.Services.Device
         // 手动触发模式
         public async Task<byte[]> ManualReadAsync(CancellationToken cancellationToken = default)
         {
-            return await ReadImplAsync(cancellationToken);
+            return await SafeReadInternalAsync(cancellationToken);
         }
 
         // 定时轮询模式
@@ -134,14 +152,19 @@ namespace CarrotLink.Core.Services.Device
                 {
                     while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
                     {
-                        Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
-                        var data = await ReadImplAsync(cancellationToken);
-                        Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                        //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
+                        var data = await SafeReadInternalAsync(cancellationToken);
+                        //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
                     }
                 }
                 catch (OperationCanceledException ex)
                 {
                     Console.WriteLine("DeviceService.StartAutoPolling() cancelled");
+                }
+                finally
+                {
+                    _pollingTimer.Dispose();
+                    _pollingTimer = null;
                 }
             }, cancellationToken);
         }
