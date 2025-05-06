@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CarrotLink.Core\CarrotLink.Core.csproj" />
+    <ProjectReference Include="..\CarrotLink.Logging.NLogLogger\CarrotLink.Logging.NLogLogger.csproj" />
   </ItemGroup>
 
 </Project>

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System;
 using CarrotLink.Core.Logging;
 using CarrotLink.Core.Storage;
+using CarrotLink.Logging.NLogLogger;
 
 namespace CarrotLink.Client
 {
@@ -59,7 +60,7 @@ namespace CarrotLink.Client
             context.Storage = new MemoryStorage();
             context.Loggers = new List<ILogger>()
             {
-                new ConsoleLogger()
+                new NLogWrapper(true)
             };
 
             context.Service = DeviceService.Create()
