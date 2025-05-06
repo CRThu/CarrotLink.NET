@@ -4,6 +4,7 @@ using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Services.Storage;
 using NationalInstruments.VisaNS;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipelines;
@@ -24,7 +25,8 @@ namespace CarrotLink.Core.Services.Device
         private readonly IProtocol _protocol;
         private readonly IDataStorage _storage;
 
-        // pipe for proc
+        // for proc
+        private readonly ArrayPool<byte> _dataProcPool;
         private readonly Pipe _pipe = new Pipe();
 
         // timer for read
@@ -45,6 +47,8 @@ namespace CarrotLink.Core.Services.Device
             _device = device ?? throw new ArgumentNullException(nameof(device));
             _protocol = protocol ?? throw new ArgumentNullException(nameof(protocol));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+
+            _dataProcPool = ArrayPool<byte>.Create(_device.Config.BufferSize, 5);
         }
 
         public async Task StartProcessingAsync(CancellationToken cancellationToken = default)
@@ -105,10 +109,10 @@ namespace CarrotLink.Core.Services.Device
             }
         }
 
-        private async Task<byte[]> SafeReadInternalAsync(CancellationToken cancellationToken = default)
+        private async Task<int> SafeReadInternalAsync(CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested)
-                return Array.Empty<byte>();
+                return 0;
             if (Interlocked.CompareExchange(ref _isReading, 1, 0) != 0)
                 throw new InvalidOperationException("Read Operation is running");
             try
@@ -121,38 +125,42 @@ namespace CarrotLink.Core.Services.Device
             }
         }
 
-        private async Task<byte[]> ReadInternalAsync(CancellationToken cancellationToken = default)
+        private async Task<int> ReadInternalAsync(CancellationToken cancellationToken = default)
         {
             PipeWriter? writer = _pipe.Writer;
+            byte[] buffer = _dataProcPool.Rent(minimumLength: _device.Config.BufferSize);
             try
             {
-                var buffer = new byte[_device.Config.BufferSize];
-                int bytesRead = await _device.ReadAsync(buffer.AsMemory(), cancellationToken);
-                var data = buffer.Take(bytesRead).ToArray();
+                int bytesRead = await _device.ReadAsync(buffer, cancellationToken);
+                var bufmem = buffer.AsMemory(0, bytesRead);
                 if (bytesRead > 0)
                 {
-                    var result = await writer.WriteAsync(data, cancellationToken);
+                    var result = await writer.WriteAsync(bufmem, cancellationToken);
 
                     Interlocked.Add(ref _totalReadBytes, bytesRead);
-                    Console.WriteLine($"Received {data.Length} bytes, Total: {TotalReadBytes} bytes");
+                    Console.WriteLine($"Received {bufmem.Length} bytes, Total: {TotalReadBytes} bytes");
 
                     if (bytesRead == buffer.Length)
                     {
                         Console.WriteLine("Warning: Buffer is full, data might be lost.");
                     }
                 }
-                return data;
+                return bytesRead;
             }
             catch (OperationCanceledException ex)
             {
                 //writer.Complete(ex);
                 Console.WriteLine("DeviceService.ReadImplAsync() cancelled");
-                return Array.Empty<byte>();
+                return 0;
+            }
+            finally
+            {
+                _dataProcPool.Return(buffer);
             }
         }
 
         // 手动触发模式
-        public async Task<byte[]> ManualReadAsync(CancellationToken cancellationToken = default)
+        public async Task<int> ManualReadAsync(CancellationToken cancellationToken = default)
         {
             return await SafeReadInternalAsync(cancellationToken);
         }
