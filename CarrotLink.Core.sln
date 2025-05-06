@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CarrotLink.Native", "Carrot
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarrotLink.Server", "CarrotLink.Server\CarrotLink.Server.csproj", "{1167737A-FE05-4532-A4DD-51273F4A566D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarrotLink.Logging.NLogLogger", "CarrotLink.Logging.NLogLogger\CarrotLink.Logging.NLogLogger.csproj", "{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{1167737A-FE05-4532-A4DD-51273F4A566D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1167737A-FE05-4532-A4DD-51273F4A566D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1167737A-FE05-4532-A4DD-51273F4A566D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
