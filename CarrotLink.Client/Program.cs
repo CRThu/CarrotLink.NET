@@ -1,10 +1,8 @@
 ﻿using CarrotLink.Core.Devices.Impl;
-using CarrotLink.Core.Services.Storage;
 using CarrotLink.Core.Services;
 using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols;
 using CarrotLink.Core.Protocols.Impl;
-using CarrotLink.Core.Services.Device;
 using CarrotLink.Core.Utility;
 using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Discovery;
@@ -13,7 +11,8 @@ using System.IO.Ports;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
-using CarrotLink.Core.Services.Logging;
+using CarrotLink.Core.Logging;
+using CarrotLink.Core.Storage;
 
 namespace CarrotLink.Client
 {

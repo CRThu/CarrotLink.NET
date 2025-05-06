@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services.Logging
+namespace CarrotLink.Core.Logging
 {
     public abstract class LoggerBase : ILogger
     {

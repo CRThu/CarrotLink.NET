@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services.Storage
+namespace CarrotLink.Core.Storage
 {
     public class MemoryStorage : IDataStorage
     {

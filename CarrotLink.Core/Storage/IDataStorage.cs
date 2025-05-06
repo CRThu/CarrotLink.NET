@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services.Storage
+namespace CarrotLink.Core.Storage
 {
     public interface IDataStorage
     {

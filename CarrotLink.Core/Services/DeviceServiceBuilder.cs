@@ -1,7 +1,7 @@
 ﻿using CarrotLink.Core.Devices.Interfaces;
+using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Models;
-using CarrotLink.Core.Services.Logging;
-using CarrotLink.Core.Services.Storage;
+using CarrotLink.Core.Storage;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services.Device
+namespace CarrotLink.Core.Services
 {
     public class DeviceServiceBuilder
     {

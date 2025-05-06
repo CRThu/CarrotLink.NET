@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services.Device
+namespace CarrotLink.Core.Services
 {
     public static class DeviceServiceExtensions
     {

@@ -1,8 +1,8 @@
 ﻿using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Interfaces;
+using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Models;
-using CarrotLink.Core.Services.Logging;
-using CarrotLink.Core.Services.Storage;
+using CarrotLink.Core.Storage;
 using NationalInstruments.VisaNS;
 using System;
 using System.Buffers;
@@ -15,7 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace CarrotLink.Core.Services.Device
+namespace CarrotLink.Core.Services
 {
     /// <summary>
     /// 支持手动/定时/事件三种触发模式的接受服务调度以及发送方法
