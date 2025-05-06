@@ -1,6 +1,7 @@
 ﻿using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Services.Logging;
 using CarrotLink.Core.Services.Storage;
 using NationalInstruments.VisaNS;
 using System;
@@ -21,12 +22,13 @@ namespace CarrotLink.Core.Services.Device
     /// </summary>
     public class DeviceService : IDisposable
     {
-        private readonly IDevice _device;
-        private readonly IProtocol _protocol;
-        private readonly IDataStorage _storage;
+        private IDevice _device;
+        private IProtocol _protocol;
+        private IDataStorage _storage;
+        private List<ILogger> _loggers;
 
         // for proc
-        private readonly ArrayPool<byte> _dataProcPool;
+        private static ArrayPool<byte> _dataProcPool = ArrayPool<byte>.Create(128 * 1024 * 1024, 5);
         private readonly Pipe _pipe = new Pipe();
 
         // timer for read
@@ -42,14 +44,15 @@ namespace CarrotLink.Core.Services.Device
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceService(IDevice device, IProtocol protocol, IDataStorage storage)
+        public DeviceService(IDevice device, IProtocol protocol, IDataStorage storage, IEnumerable<ILogger> loggers)
         {
-            _device = device ?? throw new ArgumentNullException(nameof(device));
-            _protocol = protocol ?? throw new ArgumentNullException(nameof(protocol));
-            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-
-            _dataProcPool = ArrayPool<byte>.Create(_device.Config.BufferSize, 5);
+            _device = device;
+            _protocol = protocol;
+            _storage = storage;
+            _loggers = new List<ILogger>(loggers);
         }
+
+        public static DeviceServiceBuilder Create() => new DeviceServiceBuilder();
 
         public async Task StartProcessingAsync(CancellationToken cancellationToken = default)
         {
@@ -71,6 +74,8 @@ namespace CarrotLink.Core.Services.Device
 
                         // save to storage
                         await _storage.SaveAsync(packet);
+
+                        _loggers.ForEach(l => l.LogInfo(packet.ToString()!));
                     }
 
                     // set examined position
@@ -128,7 +133,7 @@ namespace CarrotLink.Core.Services.Device
         private async Task<int> ReadInternalAsync(CancellationToken cancellationToken = default)
         {
             PipeWriter? writer = _pipe.Writer;
-            byte[] buffer = _dataProcPool.Rent(minimumLength: _device.Config.BufferSize);
+            byte[] buffer = _dataProcPool.Rent(_device.Config.BufferSize);
             try
             {
                 int bytesRead = await _device.ReadAsync(buffer, cancellationToken);
@@ -166,7 +171,7 @@ namespace CarrotLink.Core.Services.Device
         }
 
         // 定时轮询模式
-        public Task StartAutoPolling(int intervalMs, CancellationToken cancellationToken = default)
+        public Task StartAutoPollingAsync(int intervalMs, CancellationToken cancellationToken = default)
         {
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");

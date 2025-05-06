@@ -12,5 +12,6 @@ namespace CarrotLink.Core.Services.Storage
         public bool TryRead(out IPacket? packet);
         public Task SaveAsync(IPacket? data);
         public Task ExportAsJsonAsync(string path);
+        public IEnumerable<IPacket> GetStoredData();
     }
 }

@@ -13,14 +13,17 @@ using System.IO.Ports;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
+using CarrotLink.Core.Services.Logging;
 
 namespace CarrotLink.Client
 {
     public class CommContext
     {
-        public IDevice Device;
         public DeviceService Service;
-        public MemoryStorage Storage;
+        public IDevice Device;
+        public IProtocol Protocol;
+        public IDataStorage Storage;
+        public List<ILogger> Loggers;
     }
 
     internal class Program
@@ -53,12 +56,21 @@ namespace CarrotLink.Client
             Console.WriteLine("Initialize done.");
 
             Console.WriteLine("Initialize service...");
-            var protocol = new RawAsciiProtocol();
+            context.Protocol = new RawAsciiProtocol();
             context.Storage = new MemoryStorage();
+            context.Loggers = new List<ILogger>()
+            {
+                new ConsoleLogger()
+            };
 
-            context.Service = new DeviceService(context.Device, protocol, new ConcurrentStorageDecorator(context.Storage));
+            context.Service = DeviceService.Create()
+                .WithDevice(context.Device)
+                .WithProtocol(context.Protocol)
+                .WithStorage(context.Storage)
+                .WithLoggers(context.Loggers)
+                .Build();
             Task procTask = context.Service.StartProcessingAsync(cts.Token);
-            Task pollTask = context.Service.StartAutoPolling(250, cts.Token);
+            Task pollTask = context.Service.StartAutoPollingAsync(250, cts.Token);
             Console.WriteLine("Initialize done...");
 
             try

@@ -48,5 +48,9 @@ namespace CarrotLink.Core.Services.Storage
             }
         }
 
+        public IEnumerable<IPacket> GetStoredData()
+        {
+            return _innerStorage.GetStoredData();
+        }
     }
 }
