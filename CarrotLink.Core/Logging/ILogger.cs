@@ -18,8 +18,17 @@ namespace CarrotLink.Core.Logging
 
     public interface ILogger
     {
-        void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null);
+
+    }
+
+    public interface IPacketLogger
+    {
         void HandlePacket(IPacket packet);
+    }
+
+    public interface IRuntimeLogger
+    {
+        void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null);
     }
 
 }

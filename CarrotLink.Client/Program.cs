@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System;
 using CarrotLink.Core.Logging;
-using CarrotLink.Core.Storage;
 using CarrotLink.Logging.NLogLogger;
 
 namespace CarrotLink.Client
@@ -22,8 +21,7 @@ namespace CarrotLink.Client
         public DeviceService Service;
         public IDevice Device;
         public IProtocol Protocol;
-        public IDataStorage Storage;
-        public List<ILogger> Loggers;
+        public List<IPacketLogger> Loggers;
     }
 
     internal class Program
@@ -57,8 +55,7 @@ namespace CarrotLink.Client
 
             Console.WriteLine("Initialize service...");
             context.Protocol = new RawAsciiProtocol();
-            context.Storage = new MemoryStorage();
-            context.Loggers = new List<ILogger>()
+            context.Loggers = new List<IPacketLogger>()
             {
                 //new ConsoleLogger(),
                 new NLogWrapper(false,"nlog.log")
@@ -67,7 +64,6 @@ namespace CarrotLink.Client
             context.Service = DeviceService.Create()
                 .WithDevice(context.Device)
                 .WithProtocol(context.Protocol)
-                .WithStorage(context.Storage)
                 .WithLoggers(context.Loggers)
                 .Build();
             Task procTask = context.Service.StartProcessingAsync(cts.Token);
@@ -200,7 +196,7 @@ namespace CarrotLink.Client
             {
                 while (!cts.Token.IsCancellationRequested)
                 {
-                    bool hasPkt = context.Storage.TryRead(out var pkt);
+                    bool hasPkt = context.Loggers.TryRead(out var pkt);
                     if (hasPkt)
                     {
                         lock (_lock)

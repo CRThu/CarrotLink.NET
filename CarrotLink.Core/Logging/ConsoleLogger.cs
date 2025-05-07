@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Logging
 {
-    public class ConsoleLogger : ILogger
+    public class ConsoleLogger : ILogger, IPacketLogger, IRuntimeLogger
     {
         private void Log(LoggerLevel type, string message)
         => Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {type.ToString().ToUpper()}: {message}");

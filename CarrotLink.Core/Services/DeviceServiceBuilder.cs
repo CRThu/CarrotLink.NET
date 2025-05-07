@@ -1,7 +1,6 @@
 ﻿using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Models;
-using CarrotLink.Core.Storage;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -15,8 +14,7 @@ namespace CarrotLink.Core.Services
     {
         private IDevice _device;
         private IProtocol _protocol;
-        private IDataStorage _storage;
-        private List<ILogger> _loggers = new List<ILogger>();
+        private List<IPacketLogger> _loggers = new List<IPacketLogger>();
 
         public DeviceServiceBuilder WithDevice(IDevice device)
         {
@@ -30,19 +28,13 @@ namespace CarrotLink.Core.Services
             return this;
         }
 
-        public DeviceServiceBuilder WithStorage(IDataStorage storage)
-        {
-            _storage = storage;
-            return this;
-        }
-
-        public DeviceServiceBuilder WithLogger(ILogger logger)
+        public DeviceServiceBuilder WithLogger(IPacketLogger logger)
         {
             _loggers.Add(logger);
             return this;
         }
 
-        public DeviceServiceBuilder WithLoggers(IEnumerable<ILogger> loggers)
+        public DeviceServiceBuilder WithLoggers(IEnumerable<IPacketLogger> loggers)
         {
             _loggers.AddRange(loggers);
             return this;
@@ -50,7 +42,7 @@ namespace CarrotLink.Core.Services
 
         public DeviceService Build()
         {
-            return new DeviceService(_device, _protocol, _storage, _loggers);
+            return new DeviceService(_device, _protocol, _loggers);
         }
     }
 }

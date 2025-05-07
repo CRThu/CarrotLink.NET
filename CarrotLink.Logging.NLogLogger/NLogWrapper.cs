@@ -7,7 +7,7 @@ namespace CarrotLink.Logging.NLogLogger
     /// <summary>
     /// TODO: multi devices not supported
     /// </summary>
-    public class NLogWrapper : CarrotLink.Core.Logging.ILogger
+    public class NLogWrapper : CarrotLink.Core.Logging.ILogger, CarrotLink.Core.Logging.IPacketLogger
     {
         private readonly NLog.Logger _logger;
 

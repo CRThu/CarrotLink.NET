@@ -2,7 +2,6 @@
 using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Models;
-using CarrotLink.Core.Storage;
 using NationalInstruments.VisaNS;
 using System;
 using System.Buffers;
@@ -24,8 +23,7 @@ namespace CarrotLink.Core.Services
     {
         private IDevice _device;
         private IProtocol _protocol;
-        private IDataStorage _storage;
-        private List<ILogger> _loggers;
+        private List<IPacketLogger> _loggers;
 
         // for logger event
         public delegate void PacketHandler(IPacket packet);
@@ -48,12 +46,11 @@ namespace CarrotLink.Core.Services
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceService(IDevice device, IProtocol protocol, IDataStorage storage, IEnumerable<ILogger> loggers)
+        public DeviceService(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers)
         {
             _device = device;
             _protocol = protocol;
-            _storage = storage;
-            _loggers = new List<ILogger>(loggers);
+            _loggers = new List<IPacketLogger>(loggers);
 
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
         }
@@ -79,8 +76,6 @@ namespace CarrotLink.Core.Services
                             break;
 
                         // save to storage
-                        await _storage.SaveAsync(packet);
-
                         OnPacketReceived?.Invoke(packet);
                     }
 
