@@ -45,7 +45,8 @@ namespace CarrotLink.Core.Protocols.Impl
         /// <returns></returns>
         public static int GetPacketLength(byte protocolId)
         {
-            return protocolId switch {
+            return protocolId switch
+            {
 
                 ProtocolIdAsciiTransfer64 => 64,
                 ProtocolIdAsciiTransfer256 => 256,
@@ -74,10 +75,11 @@ namespace CarrotLink.Core.Protocols.Impl
 
         public override byte[] Pack(IPacket packet)
         {
-            return packet switch {
-                AsciiPacket p => EncodeAscii(p.Message),
-                BinaryPacket p => EncodeBinary(p.Data),
-                RegisterPacket p => EncodeRegister(p.Oper, p.RegFile, p.Addr, p.Value),
+            return packet switch
+            {
+                AsciiPacket p => EncodeAscii(p.Payload),
+                BinaryPacket p => EncodeBinary(p.Payload),
+                RegisterPacket p => EncodeRegister(p.Payload._oper, p.Payload._regfile, p.Payload._addr, p.Payload._value),
                 _ => throw new NotSupportedException()
             };
         }
@@ -99,7 +101,7 @@ namespace CarrotLink.Core.Protocols.Impl
         private static byte[] EncodeRegister(int oper, int regFile, int addr, int value)
         {
             // 实现寄存器操作封包逻辑
-            CdpRegisterPacket p = new(oper,regFile,addr, value);
+            CdpRegisterPacket p = new(oper, regFile, addr, value);
             return p.Bytes!;
         }
 
@@ -142,13 +144,13 @@ namespace CarrotLink.Core.Protocols.Impl
                     switch (GetCdpType(pktArray[1]))
                     {
                         case CDP_TYPE.DATA:
-                            packet = new BinaryPacket(pktArray);
+                            packet = new BinaryPacket(pktArray, PacketType.Data);
                             break;
                         case CDP_TYPE.ASCII:
-                            packet = new BinaryPacket(pktArray);
+                            packet = new BinaryPacket(pktArray, PacketType.Command);
                             break;
                         case CDP_TYPE.REG:
-                            packet = new BinaryPacket(pktArray);
+                            packet = new BinaryPacket(pktArray, PacketType.Command);
                             break;
                         default:
                             break;

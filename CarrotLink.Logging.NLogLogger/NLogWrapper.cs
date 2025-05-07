@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Protocols.Models;
+﻿using CarrotLink.Core.Logging;
+using CarrotLink.Core.Protocols.Models;
 using NLog;
 
 namespace CarrotLink.Logging.NLogLogger
@@ -38,24 +39,29 @@ namespace CarrotLink.Logging.NLogLogger
             _logger = LogManager.GetCurrentClassLogger();
         }
 
-        public void LogDebug(string message)
+        public void HandlePacket(IPacket packet)
         {
-            _logger.Debug(message);
+            _logger.Info(packet.ToString());
         }
 
-        public void LogError(string message, Exception? ex = null)
+        public void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null)
         {
-            _logger.Error(ex, message);
-        }
+            switch (level)
+            {
+                case LoggerLevel.Debug:
+                    _logger.Debug(message);
+                    break;
+                case LoggerLevel.Info:
+                    _logger.Info(message);
+                    break;
+                case LoggerLevel.Warn:
+                    _logger.Warn(message);
+                    break;
+                case LoggerLevel.Error:
+                    _logger.Error(ex, message);
+                    break;
 
-        public void LogInfo(string message)
-        {
-            _logger.Info(message);
-        }
-
-        public void LogInfo(IPacket packet)
-        {
-            _logger.Info(packet);
+            }
         }
     }
 }

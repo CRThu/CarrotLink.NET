@@ -6,14 +6,27 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
-    public record RegisterPacket(int Oper, int RegFile, int Addr, int Value) : IPacket
+    public record RegisterPacket : IPacket
     {
-        public PacketType Type => PacketType.Register;
-        public (int, int, int, int) Payload => (Oper, RegFile, Addr, Value);
-        public byte[] Pack(IProtocol protocol) => protocol.Pack(this);
-        public override string ToString()
+        private readonly PacketType _type;
+        private readonly (int _oper, int _regfile, int _addr, int _value) _data;
+
+        public PacketType Type => _type;
+        public (int _oper, int _regfile, int _addr, int _value) Payload => _data;
+
+        public RegisterPacket(int oper, int regfile, int addr, int value, PacketType type = PacketType.Command)
         {
-            return $"{Payload.Item1},{Payload.Item2},{Payload.Item3},{Payload.Item4}";
+            _data._oper = oper;
+            _data._regfile = regfile;
+            _data._addr = addr;
+            _data._value = value;
+            _type = type;
         }
+
+        public byte[] Pack(IProtocol protocol)
+            => protocol.Pack(this);
+
+        public override string ToString()
+            => $"{Payload._oper}, {Payload._regfile}, {Payload._addr}, {Payload._value}";
     }
 }

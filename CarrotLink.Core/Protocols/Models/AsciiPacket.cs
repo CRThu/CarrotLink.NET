@@ -7,16 +7,25 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
-    public record AsciiPacket(string Message) : IPacket
+    public record AsciiPacket : IPacket
     {
-        public PacketType Type => PacketType.Ascii;
-        public string Payload => Message;
-        public byte[] Pack(IProtocol protocol) => protocol.Pack(this);
+        private readonly PacketType _type;
+        private readonly string _msg;
+
+        public PacketType Type => _type;
+        public string Payload => _msg;
+
+        public AsciiPacket(string Message, PacketType type = PacketType.Command)
+        {
+            _msg = Message;
+            _type = type;
+        }
+
+        public byte[] Pack(IProtocol protocol)
+            => protocol.Pack(this);
 
         public override string ToString()
-        {
-            
-            return $"{Payload.ReplaceLineEndings("\\r\\n")}";
-        }
+            => $"{Payload.ReplaceLineEndings("\\r\\n")}";
+
     }
 }

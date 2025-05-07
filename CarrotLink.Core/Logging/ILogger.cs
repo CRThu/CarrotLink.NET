@@ -8,11 +8,18 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Logging
 {
+    public enum LoggerLevel
+    {
+        Debug,
+        Info,
+        Warn,
+        Error,
+    }
+
     public interface ILogger
     {
-        void LogInfo(string message);
-        void LogInfo(IPacket packet);
-        void LogError(string message, Exception? ex = null);
-        void LogDebug(string message);
+        void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null);
+        void HandlePacket(IPacket packet);
     }
+
 }

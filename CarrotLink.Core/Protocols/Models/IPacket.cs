@@ -12,6 +12,6 @@ namespace CarrotLink.Core.Protocols.Models
         byte[] Pack(IProtocol protocol);
     }
 
-    public enum PacketType { Ascii, Binary, Register }
+    public enum PacketType { Command, Data }
 
 }

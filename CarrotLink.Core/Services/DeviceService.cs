@@ -27,6 +27,10 @@ namespace CarrotLink.Core.Services
         private IDataStorage _storage;
         private List<ILogger> _loggers;
 
+        // for logger event
+        public delegate void PacketHandler(IPacket packet);
+        public event PacketHandler OnPacketReceived;
+
         // for proc
         private static ArrayPool<byte> _dataProcPool = ArrayPool<byte>.Create(128 * 1024 * 1024, 5);
         private readonly Pipe _pipe = new Pipe();
@@ -50,6 +54,8 @@ namespace CarrotLink.Core.Services
             _protocol = protocol;
             _storage = storage;
             _loggers = new List<ILogger>(loggers);
+
+            _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
         }
 
         public static DeviceServiceBuilder Create() => new DeviceServiceBuilder();
@@ -75,7 +81,7 @@ namespace CarrotLink.Core.Services
                         // save to storage
                         await _storage.SaveAsync(packet);
 
-                        _loggers.ForEach(l => l.LogInfo(packet));
+                        OnPacketReceived?.Invoke(packet);
                     }
 
                     // set examined position

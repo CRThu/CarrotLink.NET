@@ -71,7 +71,7 @@ namespace CarrotLink.Client
                 .WithLoggers(context.Loggers)
                 .Build();
             Task procTask = context.Service.StartProcessingAsync(cts.Token);
-            Task pollTask = context.Service.StartAutoPollingAsync(250, cts.Token);
+            Task pollTask = context.Service.StartAutoPollingAsync(50, cts.Token);
             Console.WriteLine("Initialize done...");
 
             try
@@ -147,11 +147,11 @@ namespace CarrotLink.Client
         {
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
-            int packetNum = 10000;
+            int packetNum = 1000000;
             for (int i = 0; i < packetNum; i++)
             {
                 await context.Service.SendAscii($"{i:D18}");
-                if (i % 10000 == 0)
+                if (i % 1000 == 0)
                     await Task.Delay(10);
             }
 
@@ -174,7 +174,7 @@ namespace CarrotLink.Client
                 for (int i = 0; i < sentData.Length; i++)
                 {
                     string send = sentData[i];
-                    string? recv = (receivedData[i] as AsciiPacket)?.Payload;
+                    string? recv = ((AsciiPacket)receivedData[i]).Payload;
                     if (send != recv)
                     {
                         maxErrorCount++;

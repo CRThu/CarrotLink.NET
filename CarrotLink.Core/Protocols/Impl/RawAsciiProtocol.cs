@@ -33,7 +33,8 @@ namespace CarrotLink.Core.Protocols.Impl
 
         public override byte[] Pack(IPacket packet)
         {
-            return packet switch {
+            return packet switch
+            {
                 AsciiPacket p => (p.Payload + "\r\n").AsciiToBytes(),
                 _ => throw new NotSupportedException("RawAsciiProtocol only supports AsciiPacket")
             };
@@ -97,7 +98,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 // packet generate
                 //Console.WriteLine($"Read data binary: {BytesEx.BytesToAscii(seqBin.ToArray()).ReplaceLineEndings("\\r\\n")}");
 
-                packet = new BinaryPacket(seqBin.ToArray());
+                packet = new BinaryPacket(seqBin.ToArray(), PacketType.Data);
 
                 if (reader.Remaining < xmlCmdTagCloseCompare.Length)
                     return false;
