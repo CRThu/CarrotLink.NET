@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CarrotLink.Core.Protocols.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -10,6 +11,7 @@ namespace CarrotLink.Core.Logging
     public interface ILogger
     {
         void LogInfo(string message);
+        void LogInfo(IPacket packet);
         void LogError(string message, Exception? ex = null);
         void LogDebug(string message);
     }

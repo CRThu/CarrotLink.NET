@@ -75,7 +75,7 @@ namespace CarrotLink.Core.Services
                         // save to storage
                         await _storage.SaveAsync(packet);
 
-                        _loggers.ForEach(l => l.LogInfo(packet.ToString()!));
+                        _loggers.ForEach(l => l.LogInfo(packet));
                     }
 
                     // set examined position

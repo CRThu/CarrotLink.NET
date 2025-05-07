@@ -60,7 +60,8 @@ namespace CarrotLink.Client
             context.Storage = new MemoryStorage();
             context.Loggers = new List<ILogger>()
             {
-                new NLogWrapper(true)
+                //new ConsoleLogger(),
+                new NLogWrapper(false,"nlog.log")
             };
 
             context.Service = DeviceService.Create()
