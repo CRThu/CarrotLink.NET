@@ -15,13 +15,15 @@ using CarrotLink.Core.Devices.Library;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    /*
+    
     public class FtdiDevice : DeviceBase<FtdiConfiguration>
     {
         /// <summary>
         /// 驱动层实现
         /// </summary>
         private FTDI ftdi;
+        public new FtdiConfiguration Config => _config;
+
         private readonly object _lock_w = new object();
         private readonly object _lock_r = new object();
 
@@ -29,6 +31,7 @@ namespace CarrotLink.Core.Devices.Impl
         {
             ftdi = new FTDI();
         }
+
         public override async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
             if (IsConnected) return;
@@ -59,11 +62,12 @@ namespace CarrotLink.Core.Devices.Impl
             ftdi.SetTimeouts(1, 1);
 
             IsConnected = true;
-            TotalSentBytes = 0;
-            TotalReceivedBytes = 0;
+            _totalReadBytes =0;
+            _totalWriteBytes =0;
 
             await Task.CompletedTask;
         }
+
         public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
         {
             if (ftdi != null && ftdi.IsOpen)
@@ -73,6 +77,7 @@ namespace CarrotLink.Core.Devices.Impl
             }
             await Task.CompletedTask;
         }
+
         //private int GetBytesToRead()
         //{
         //    uint rxQuene = 0;
@@ -98,7 +103,7 @@ namespace CarrotLink.Core.Devices.Impl
             {
                 // Read
                 Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(rx, (uint)bytesExpected, ref bytesRead));
-                TotalReceivedBytes += bytesRead;
+                _totalReadBytes += bytesRead;
             }
             rx.AsMemory(0, (int)bytesRead).CopyTo(buffer);
 
@@ -106,6 +111,7 @@ namespace CarrotLink.Core.Devices.Impl
 
             return (int)bytesRead;
         }
+
         public override async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
             if (ftdi == null)
@@ -127,10 +133,9 @@ namespace CarrotLink.Core.Devices.Impl
                     Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{bufferWithZeroOffset.Length})");
                 }
 
-                TotalSentBytes += bufferWithZeroOffset.Length;
+                _totalWriteBytes += bufferWithZeroOffset.Length;
             }
             await Task.CompletedTask;
         }
     }
-    */
 }
