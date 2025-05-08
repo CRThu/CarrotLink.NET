@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System;
 using CarrotLink.Core.Logging;
 using CarrotLink.Logging.NLogLogger;
+using CarrotLink.Core.Storage;
 
 namespace CarrotLink.Client
 {
@@ -21,7 +22,7 @@ namespace CarrotLink.Client
         public DeviceService Service;
         public IDevice Device;
         public IProtocol Protocol;
-        public List<IPacketLogger> Loggers;
+        public Dictionary<string, IPacketLogger> Loggers;
     }
 
     internal class Program
@@ -55,16 +56,17 @@ namespace CarrotLink.Client
 
             Console.WriteLine("Initialize service...");
             context.Protocol = new RawAsciiProtocol();
-            context.Loggers = new List<IPacketLogger>()
+            context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //new ConsoleLogger(),
-                new NLogWrapper(false,"nlog.log")
+                {"nlog", new NLogWrapper(false,"nlog.log") },
+                {"storage", new CommandStorage() }
             };
 
             context.Service = DeviceService.Create()
                 .WithDevice(context.Device)
                 .WithProtocol(context.Protocol)
-                .WithLoggers(context.Loggers)
+                .WithLoggers(context.Loggers.Values)
                 .Build();
             Task procTask = context.Service.StartProcessingAsync(cts.Token);
             Task pollTask = context.Service.StartAutoPollingAsync(50, cts.Token);
@@ -159,18 +161,17 @@ namespace CarrotLink.Client
             Console.WriteLine($"Device TX: {context.Device.TotalWriteBytes}, RX: {context.Device.TotalReadBytes}");
 
             // 比较数据是否正确
-            var sentData = Enumerable.Range(0, packetNum).Select(i => $"{i:D18}").ToArray();
-            var receivedData = context.Storage.GetStoredData().ToArray();
+            var commandStorage = (context.Loggers["storage"] as CommandStorage);
 
-            if (sentData.Length != receivedData.Length)
+            if (packetNum != commandStorage.Count)
                 Console.WriteLine($"Sent bytes != received bytes.");
             else
             {
                 int maxErrorCount = 0;
-                for (int i = 0; i < sentData.Length; i++)
+                for (int i = 0; i < packetNum; i++)
                 {
-                    string send = sentData[i];
-                    string? recv = ((AsciiPacket)receivedData[i]).Payload;
+                    string send = $"{i:D18}";
+                    commandStorage.TryRead(out string? recv);
                     if (send != recv)
                     {
                         maxErrorCount++;
@@ -191,12 +192,13 @@ namespace CarrotLink.Client
         {
             CancellationTokenSource cts = new CancellationTokenSource();
             object _lock = new();
+            var commandStorage = (context.Loggers["storage"] as CommandStorage);
 
             var readTask = new Task(() =>
             {
                 while (!cts.Token.IsCancellationRequested)
                 {
-                    bool hasPkt = context.Loggers.TryRead(out var pkt);
+                    bool hasPkt = commandStorage.TryRead(out var pkt);
                     if (hasPkt)
                     {
                         lock (_lock)
@@ -228,7 +230,7 @@ namespace CarrotLink.Client
             cts.Cancel();
 
             // 导出最终数据
-            await context.Storage.ExportAsJsonAsync("data.json");
+            //await context.Storage.ExportAsJsonAsync("data.json");
         }
 
         private static async Task DebugTest()
