@@ -12,10 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Utility\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="FTD2XX_NET">
       <HintPath>..\Library\FTD2XX\FTD2XX_NET.dll</HintPath>
     </Reference>

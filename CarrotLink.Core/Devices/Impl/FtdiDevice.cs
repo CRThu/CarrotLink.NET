@@ -12,10 +12,11 @@ using System.Diagnostics;
 using System.Threading;
 using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Library;
+using CarrotLink.Core.Utility;
 
 namespace CarrotLink.Core.Devices.Impl
 {
-    
+
     public class FtdiDevice : DeviceBase<FtdiConfiguration>
     {
         /// <summary>
@@ -23,6 +24,7 @@ namespace CarrotLink.Core.Devices.Impl
         /// </summary>
         private FTDI ftdi;
         public new FtdiConfiguration Config => _config;
+        public new bool IsConnected => ftdi != null && ftdi.IsOpen;
 
         private readonly object _lock_w = new object();
         private readonly object _lock_r = new object();
@@ -34,7 +36,8 @@ namespace CarrotLink.Core.Devices.Impl
 
         public override async Task ConnectAsync(CancellationToken cancellationToken = default)
         {
-            if (IsConnected) return;
+            if (IsConnected)
+                return;
 
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.OpenBySerialNumber(Config.SerialNumber));
 
@@ -45,25 +48,20 @@ namespace CarrotLink.Core.Devices.Impl
             // SYNC FIFO MODE NEED BOTH WRITE EEPROM AND SETBITMODE
             byte mask, mode;
             mask = 0xff;
-            //   BitMode:
-            //     For FT232H devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_MPSSE, FT_BIT_MODE_SYNC_BITBANG, FT_BIT_MODE_CBUS_BITBANG, FT_BIT_MODE_MCU_HOST, FT_BIT_MODE_FAST_SERIAL, FT_BIT_MODE_SYNC_FIFO.
-            //     For FT2232H devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_MPSSE, FT_BIT_MODE_SYNC_BITBANG, FT_BIT_MODE_MCU_HOST, FT_BIT_MODE_FAST_SERIAL, FT_BIT_MODE_SYNC_FIFO.
-            //     For FT4232H devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_MPSSE, FT_BIT_MODE_SYNC_BITBANG.
-            //     For FT232R devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_SYNC_BITBANG, FT_BIT_MODE_CBUS_BITBANG.
-            //     For FT245R devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_SYNC_BITBANG.
-            //     For FT2232 devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG, FT_BIT_MODE_MPSSE, FT_BIT_MODE_SYNC_BITBANG, FT_BIT_MODE_MCU_HOST, FT_BIT_MODE_FAST_SERIAL.
-            //     For FT232B and FT245B devices, valid values are FT_BIT_MODE_RESET, FT_BIT_MODE_ASYNC_BITBANG.
-            mode = FT_BIT_MODES.FT_BIT_MODE_SYNC_FIFO;
+            mode = Config.Mode switch
+            {
+                FtdiCommMode.SyncFifo => FT_BIT_MODES.FT_BIT_MODE_SYNC_FIFO,
+                _ => FT_BIT_MODES.FT_BIT_MODE_RESET,
+            };
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetBitMode(mask, mode));
 
-
+            // Flush
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Purge(FT_PURGE.FT_PURGE_RX & FT_PURGE.FT_PURGE_TX));
 
-            ftdi.SetTimeouts(1, 1);
+            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetTimeouts(1, 1));
 
-            IsConnected = true;
-            _totalReadBytes =0;
-            _totalWriteBytes =0;
+            _totalReadBytes = 0;
+            _totalWriteBytes = 0;
 
             await Task.CompletedTask;
         }
@@ -73,7 +71,6 @@ namespace CarrotLink.Core.Devices.Impl
             if (ftdi != null && ftdi.IsOpen)
             {
                 Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Close());
-                IsConnected = false;
             }
             await Task.CompletedTask;
         }
@@ -86,26 +83,19 @@ namespace CarrotLink.Core.Devices.Impl
         //}
         public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            if (ftdi == null)
+            if (!IsConnected)
                 throw new InvalidOperationException("Device not connected");
 
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
             // 同步实现
-
             uint bytesRead = 0;
-            int bytesExpected = 0;
-            byte[] rx = new byte[Math.Min(buffer.Length, Config.BufferSize)];
-
-            bytesExpected = rx.Length;
+            int bytesExpected = Math.Min(buffer.Length, Config.BufferSize);
 
             lock (_lock_r)
             {
                 // Read
-                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(rx, (uint)bytesExpected, ref bytesRead));
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(buffer.ToUnsafeArray(), (uint)bytesExpected, ref bytesRead));
                 _totalReadBytes += bytesRead;
             }
-            rx.AsMemory(0, (int)bytesRead).CopyTo(buffer);
 
             await Task.CompletedTask;
 
@@ -114,26 +104,23 @@ namespace CarrotLink.Core.Devices.Impl
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {
-            if (ftdi == null)
+            if (!IsConnected)
                 throw new InvalidOperationException("Device not connected");
 
-            if (!IsConnected) throw new InvalidOperationException("Not connected");
-
-            byte[] bufferWithZeroOffset = data.ToArray();
             uint numBytesWritten = 0;
 
             lock (_lock_w)
             {
-                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Write(bufferWithZeroOffset, bufferWithZeroOffset.Length, ref numBytesWritten));
+                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Write(data.ToUnsafeArray(), data.Length, ref numBytesWritten));
 
                 // Waiting for transfer done
                 // TODO 同步流写入存在阻塞，待优化
-                while (bufferWithZeroOffset.Length != numBytesWritten)
+                while (data.Length != numBytesWritten)
                 {
-                    Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{bufferWithZeroOffset.Length})");
+                    Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{data.Length})");
                 }
 
-                _totalWriteBytes += bufferWithZeroOffset.Length;
+                _totalWriteBytes += data.Length;
             }
             await Task.CompletedTask;
         }
