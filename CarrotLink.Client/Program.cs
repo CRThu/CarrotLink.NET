@@ -50,7 +50,17 @@ namespace CarrotLink.Client
             //};
             //var device = new SerialDevice(config);
 
-            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+
+            var config = new FtdiConfiguration
+            {
+                DeviceId = "ftdi-1",
+                SerialNumber = "",
+                Mode = FtdiCommMode.SyncFifo,
+                Model = FtdiModel.Ft2232h,
+            };
+            var device = new FtdiDevice(config);
+
             await context.Device.ConnectAsync();
             Console.WriteLine("Initialize done.");
 
@@ -69,7 +79,7 @@ namespace CarrotLink.Client
                 .WithLoggers(context.Loggers.Values)
                 .Build();
             Task procTask = context.Service.StartProcessingAsync(cts.Token);
-            Task pollTask = context.Service.StartAutoPollingAsync(50, cts.Token);
+            Task pollTask = context.Service.StartAutoPollingAsync(15, cts.Token);
             Console.WriteLine("Initialize done...");
 
             try

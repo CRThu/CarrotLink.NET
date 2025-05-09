@@ -31,6 +31,7 @@ namespace CarrotLink.Logging.NLogLogger
                 {
                     FileName = tofile,
                     Layout = layout,
+                    DeleteOldFileOnStartup = true   // delete log on startup
                 };
                 config.AddRule(LogLevel.Trace, LogLevel.Fatal, logfile);
             }
