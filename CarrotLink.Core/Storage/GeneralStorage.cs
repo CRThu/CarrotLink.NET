@@ -10,23 +10,19 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Storage
 {
-    public interface IStorage<T> : IPacketLogger
-    {
-        public long Count { get; }
-        public bool TryRead(out T? packet);
-    }
-
     public class GeneralStorage<T> : IStorage<T>
     {
-        private readonly ConcurrentQueue<T> _storage;
+        private readonly IStorageBackend<T> _backend;
         private Func<IPacket, bool>? _filter;
         private Func<IPacket, T> _converter;
 
-        public long Count => _storage.Count;
+        public long Count => _backend.Count;
 
-        public GeneralStorage(Func<IPacket, T> converter, Func<IPacket, bool>? filter = default)
+        public GeneralStorage(Func<IPacket, T> converter,
+            Func<IPacket, bool>? filter = default,
+            IStorageBackend<T>? backend = default)
         {
-            _storage = new ConcurrentQueue<T>();
+            _backend = backend ?? new MemoryStorageBackend<T>();
             _converter = converter;
             _filter = filter;
         }
@@ -35,13 +31,14 @@ namespace CarrotLink.Core.Storage
         {
             if (_filter != null && _filter(packet))
             {
-                _storage.Enqueue(_converter(packet));
+                var item = _converter(packet);
+                _backend.Enquene(item);
             }
         }
 
         public bool TryRead(out T? data)
         {
-            return _storage.TryDequeue(out data);
+            return _backend.TryDequeue(out data);
         }
     }
 
