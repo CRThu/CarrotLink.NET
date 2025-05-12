@@ -23,6 +23,17 @@ namespace CarrotLink.Core.Devices.Impl
         /// 驱动层实现
         /// </summary>
         private FTDI ftdi;
+
+        /// <summary>
+        /// ft2232h驱动限制最大读取为64K
+        /// </summary>
+        private static int _d2xxMaxReadSize = 65536;
+
+        /// <summary>
+        /// 内部接收缓冲区
+        /// </summary>
+        private static byte[] rxBuffer = new byte[_d2xxMaxReadSize];
+
         public new FtdiConfiguration Config => _config;
         public new bool IsConnected => ftdi != null && ftdi.IsOpen;
 
@@ -41,9 +52,6 @@ namespace CarrotLink.Core.Devices.Impl
 
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.OpenBySerialNumber(Config.SerialNumber));
 
-            // Set Timeout
-            Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetTimeouts((uint)Config.Timeout, (uint)Config.Timeout));
-
             // Set BitMode
             // SYNC FIFO MODE NEED BOTH WRITE EEPROM AND SETBITMODE
             byte mask, mode;
@@ -58,6 +66,8 @@ namespace CarrotLink.Core.Devices.Impl
             // Flush
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Purge(FT_PURGE.FT_PURGE_RX & FT_PURGE.FT_PURGE_TX));
 
+            // Set Timeout
+            //Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetTimeouts((uint)Config.Timeout, (uint)Config.Timeout));
             Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.SetTimeouts(1, 1));
 
             _totalReadBytes = 0;
@@ -81,25 +91,46 @@ namespace CarrotLink.Core.Devices.Impl
         //    Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetRxBytesAvailable(ref rxQuene));
         //    return (int)rxQuene;
         //}
+
         public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             if (!IsConnected)
                 throw new InvalidOperationException("Device not connected");
 
             // 同步实现
-            uint bytesRead = 0;
-            int bytesExpected = Math.Min(buffer.Length, Config.BufferSize);
+            int bufferSizeLimit = Math.Min(buffer.Length, Config.BufferSize);
+
+            int bytesRead = 0;
+            //byte[] rx = new byte[_d2xxMaxReadSize];
 
             lock (_lock_r)
             {
                 // Read
-                Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(buffer.ToUnsafeArray(), (uint)bytesExpected, ref bytesRead));
+                //Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(buffer.ToUnsafeArray(), (uint)bytesExpected, ref bytesRead));
+
+                uint bytesToRead = 0;
+                uint currentBytesRead = 0;
+                while (true)
+                {
+                    Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.GetRxBytesAvailable(ref bytesToRead));
+                    uint bytesExpected = (uint)Math.Min(_d2xxMaxReadSize, bytesToRead);
+
+                    //Console.WriteLine($"(FTDI.GetRxBytesAvailable){ftStatus},{bytesToRead}");
+
+                    if (bytesRead + bytesExpected > bufferSizeLimit || bytesToRead < _d2xxMaxReadSize)
+                        break;
+
+                    Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(rxBuffer, bytesExpected, ref currentBytesRead));
+                    //Console.WriteLine($"(FTDI.Read){ftStatus},{bytesExpected},{currentBytesRead}");
+
+                    rxBuffer.AsMemory(0, (int)currentBytesRead).CopyTo(buffer.Slice(bytesRead));
+
+                    bytesRead += (int)currentBytesRead;
+                }
                 _totalReadBytes += bytesRead;
+                //Console.WriteLine($"(FTDI.DEV)Read {bytesRead} bytes, Total: {TotalReceivedBytes} bytes");
             }
-
-            await Task.CompletedTask;
-
-            return (int)bytesRead;
+            return await Task.FromResult(bytesRead);
         }
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
@@ -115,9 +146,9 @@ namespace CarrotLink.Core.Devices.Impl
 
                 // Waiting for transfer done
                 // TODO 同步流写入存在阻塞，待优化
-                while (data.Length != numBytesWritten)
+                if (data.Length != numBytesWritten)
                 {
-                    Debug.WriteLine($"Waiting for write device done ({numBytesWritten}/{data.Length})");
+                    throw new DriverErrorException($"FT_Write: numBytesWritten({numBytesWritten}) != data.Length({data.Length}).");
                 }
 
                 _totalWriteBytes += data.Length;
