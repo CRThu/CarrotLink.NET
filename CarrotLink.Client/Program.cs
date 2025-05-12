@@ -50,16 +50,16 @@ namespace CarrotLink.Client
             //};
             //var device = new SerialDevice(config);
 
-            //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
-            var config = new FtdiConfiguration
-            {
-                DeviceId = "ftdi-1",
-                SerialNumber = "",
-                Mode = FtdiCommMode.SyncFifo,
-                Model = FtdiModel.Ft2232h,
-            };
-            var device = new FtdiDevice(config);
+            //var config = new FtdiConfiguration
+            //{
+            //    DeviceId = "ftdi-1",
+            //    SerialNumber = "",
+            //    Mode = FtdiCommMode.SyncFifo,
+            //    Model = FtdiModel.Ft2232h,
+            //};
+            //var device = new FtdiDevice(config);
 
             await context.Device.ConnectAsync();
             Console.WriteLine("Initialize done.");
@@ -159,7 +159,7 @@ namespace CarrotLink.Client
             for (int i = 0; i < packetNum; i++)
             {
                 await context.Service.SendAscii($"{i:D18}");
-                if (i % 1000 == 0)
+                if (i % 10000 == 0)
                     await Task.Delay(10);
             }
 

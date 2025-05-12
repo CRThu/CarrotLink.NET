@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using CarrotLink.Core.Devices.Configuration;
 
@@ -6,25 +8,11 @@ namespace CarrotLink.Core.Devices.Impl
 {
     public class LoopbackDevice : DeviceBase<LoopbackConfiguration>
     {
-        private byte[] _buffer;
-        private int _readPosition;
-        private int _writePosition;
-        private readonly object _lock = new object();
 
-        private int FreeBytesLength
-        {
-            get
-            {
-                if (_writePosition >= _readPosition)
-                    return _buffer.Length - _writePosition + _readPosition - 1;
-                else
-                    return _readPosition - _writePosition - 1;
-            }
-        }
+        private readonly ConcurrentQueue<byte> _quene = new ConcurrentQueue<byte>();
 
         public LoopbackDevice(LoopbackConfiguration config) : base(config)
         {
-            _buffer = new byte[config.BufferSize];
         }
 
         public override async Task ConnectAsync(CancellationToken cancellationToken = default)
@@ -41,35 +29,27 @@ namespace CarrotLink.Core.Devices.Impl
 
         public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
-            if (!IsConnected)
-                throw new InvalidOperationException("Device is not connected");
-
-            int bytesRead;
-            lock (_lock)
+            var size = Math.Min(buffer.Length - 1, _quene.Count);
+            if (size == 0)
+                return 0;
+            var _buf = ArrayPool<byte>.Shared.Rent(size);
+            var index = 0;
+            try
             {
-                int bytesAvailable = _writePosition - _readPosition;
-                if (bytesAvailable < 0)
-                    bytesAvailable += _buffer.Length;
-                bytesRead = Math.Min(bytesAvailable, buffer.Length);
-                if (bytesRead > 0)
+                while (_quene.TryDequeue(out _buf[index]))
                 {
-                    var firstSegmentLength = Math.Min(bytesRead, _buffer.Length - _readPosition);
-                    var firstSegment = new ReadOnlyMemory<byte>(_buffer, _readPosition, firstSegmentLength);
-                    firstSegment.CopyTo(buffer.Slice(0, firstSegmentLength));
-
-                    if (firstSegmentLength < bytesRead)
-                    {
-                        var secondSegmentLength = bytesRead - firstSegmentLength;
-                        var secondSegment = new ReadOnlyMemory<byte>(_buffer, 0, secondSegmentLength);
-                        secondSegment.CopyTo(buffer.Slice(firstSegmentLength, secondSegmentLength));
-                    }
-
-                    _readPosition = (_readPosition + bytesRead) % _buffer.Length;
+                    index++;
+                    if (index == size)
+                        break;
                 }
-
-                _totalReadBytes += bytesRead;
+                _buf.AsMemory(0, index).CopyTo(buffer);
             }
-            return await Task.FromResult(bytesRead).ConfigureAwait(false);
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(_buf);
+            }
+            _totalReadBytes += index;
+            return await Task.FromResult(index).ConfigureAwait(false);
         }
 
         public override async Task WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
@@ -77,32 +57,12 @@ namespace CarrotLink.Core.Devices.Impl
             if (!IsConnected)
                 throw new InvalidOperationException("Device is not connected");
 
-            lock (_lock)
-            {
-                int bytesWritten = 0;
-                int bytesRemaining = Math.Min(buffer.Length, FreeBytesLength);
+            for (int i = 0; i < buffer.Length; i++)
+                _quene.Enqueue(buffer.Span[i]);
 
-                var firstSegmentLength = Math.Min(bytesRemaining, _buffer.Length - _writePosition);
-                if (firstSegmentLength > 0)
-                {
-                    var firstSegment = new Memory<byte>(_buffer, _writePosition, firstSegmentLength);
-                    buffer.Slice(0, firstSegmentLength).CopyTo(firstSegment);
-                    _writePosition = (_writePosition + firstSegmentLength) % _buffer.Length;
-                    bytesWritten += firstSegmentLength;
-                }
-
-                if (bytesWritten < bytesRemaining)
-                {
-                    var secondSegmentLength = bytesRemaining - bytesWritten;
-                    var secondSegment = new Memory<byte>(_buffer, 0, secondSegmentLength);
-                    buffer.Slice(bytesWritten, secondSegmentLength).CopyTo(secondSegment);
-                    _writePosition = (_writePosition + secondSegmentLength) % _buffer.Length;
-                    bytesWritten += secondSegmentLength;
-
-                }
-                _totalWriteBytes += bytesWritten;
-            }
+            _totalWriteBytes += buffer.Length;
             await Task.CompletedTask.ConfigureAwait(false);
+
         }
     }
 }
