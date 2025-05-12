@@ -1,6 +1,7 @@
 ﻿using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Models;
 using NLog;
+using NLog.Targets.Wrappers;
 
 namespace CarrotLink.Logging.NLogLogger
 {
@@ -22,7 +23,13 @@ namespace CarrotLink.Logging.NLogLogger
                 {
                     Layout = layout,
                 };
-                config.AddRule(LogLevel.Trace, LogLevel.Fatal, logconsole);
+                var asyncLogConsole = new AsyncTargetWrapper(logconsole)
+                {
+                    TimeToSleepBetweenBatches = 100,
+                    QueueLimit = 1000000,
+                    OverflowAction = AsyncTargetWrapperOverflowAction.Block,
+                };
+                config.AddRule(LogLevel.Trace, LogLevel.Fatal, asyncLogConsole);
             }
 
             if (tofile != default)
@@ -31,9 +38,17 @@ namespace CarrotLink.Logging.NLogLogger
                 {
                     FileName = tofile,
                     Layout = layout,
-                    DeleteOldFileOnStartup = true   // delete log on startup
+                    DeleteOldFileOnStartup = true,   // delete log on startup
+                    KeepFileOpen = true,
+                    BufferSize = 1 * 1024 * 1024,
                 };
-                config.AddRule(LogLevel.Trace, LogLevel.Fatal, logfile);
+                var asyncLogFile = new AsyncTargetWrapper(logfile)
+                {
+                    TimeToSleepBetweenBatches = 100,
+                    QueueLimit = 1000000,
+                    OverflowAction = AsyncTargetWrapperOverflowAction.Grow,
+                };
+                config.AddRule(LogLevel.Trace, LogLevel.Fatal, asyncLogFile);
             }
             NLog.LogManager.Configuration = config;     // initial
 
