@@ -9,7 +9,6 @@ namespace CarrotLink.Core.Protocols.Models
     public interface IPacket
     {
         PacketType Type { get; }
-        byte[] Pack(IProtocol protocol);
     }
 
     public enum PacketType { Command, Data }

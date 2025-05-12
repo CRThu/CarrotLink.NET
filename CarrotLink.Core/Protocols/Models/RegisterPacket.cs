@@ -23,9 +23,6 @@ namespace CarrotLink.Core.Protocols.Models
             _type = type;
         }
 
-        public byte[] Pack(IProtocol protocol)
-            => protocol.Pack(this);
-
         public override string ToString()
             => $"{Payload._oper}, {Payload._regfile}, {Payload._addr}, {Payload._value}";
     }

@@ -12,7 +12,7 @@ namespace CarrotLink.Core.Protocols.Models
         public static string Name { get; set; }
         public static string Version { get; }
 
-        public byte[] Pack(IPacket packet);
+        public byte[] GetBytes(IPacket packet);
         public bool TryParse(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
     }
 }

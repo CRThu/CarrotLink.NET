@@ -21,9 +21,6 @@ namespace CarrotLink.Core.Protocols.Models
             _type = type;
         }
 
-        public byte[] Pack(IProtocol protocol)
-            => protocol.Pack(this);
-
         public override string ToString()
             => $"<{(ushort)(Payload[6] << 8 | Payload[5])} Bytes Data>";
     }

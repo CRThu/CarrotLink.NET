@@ -104,9 +104,9 @@ namespace CarrotLink.Core.Services
                 throw new InvalidOperationException("Write Operation is running");
             try
             {
-                byte[] data = packet.Pack(_protocol);
-                await _device.WriteAsync(data, cancellationToken);
-                Interlocked.Add(ref _totalWriteBytes, data.Length);
+                var pktBytes = _protocol.GetBytes(packet);
+                await _device.WriteAsync(pktBytes, cancellationToken);
+                Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
             }
             finally
             {

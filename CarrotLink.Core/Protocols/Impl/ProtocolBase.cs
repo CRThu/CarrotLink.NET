@@ -16,7 +16,7 @@ namespace CarrotLink.Core.Protocols.Impl
         public static string Version { get; set; } = "Ver.X";
         public static string Name { get; set; } = nameof(ProtocolBase);
 
-        public abstract byte[] Pack(IPacket packet);
+        public abstract byte[] GetBytes(IPacket packet);
 
         protected abstract bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
 

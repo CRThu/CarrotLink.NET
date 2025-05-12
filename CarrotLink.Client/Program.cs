@@ -69,7 +69,7 @@ namespace CarrotLink.Client
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //new ConsoleLogger(),
-                {"nlog", new NLogWrapper(false,"nlog.log") },
+                //{"nlog", new NLogWrapper(false,"nlog.log") },
                 {"storage", new CommandStorage() }
             };
 

@@ -73,7 +73,7 @@ namespace CarrotLink.Core.Protocols.Impl
         }
 
 
-        public override byte[] Pack(IPacket packet)
+        public override byte[] GetBytes(IPacket packet)
         {
             return packet switch
             {
