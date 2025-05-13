@@ -79,5 +79,8 @@ namespace CarrotLink.Logging.NLogLogger
 
             }
         }
+        public void Dispose()
+        {
+        }
     }
 }

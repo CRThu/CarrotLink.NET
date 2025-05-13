@@ -29,5 +29,9 @@ namespace CarrotLink.Core.Logging
         {
             Log(LoggerLevel.Info, packet.ToString() ?? "<null>");
         }
+
+        public void Dispose()
+        {
+        }
     }
 }

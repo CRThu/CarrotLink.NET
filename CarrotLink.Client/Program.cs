@@ -14,6 +14,9 @@ using System;
 using CarrotLink.Core.Logging;
 using CarrotLink.Logging.NLogLogger;
 using CarrotLink.Core.Storage;
+using System.IO.MemoryMappedFiles;
+using System.Reflection;
+using System.IO;
 
 namespace CarrotLink.Client
 {
@@ -70,7 +73,7 @@ namespace CarrotLink.Client
             {
                 //new ConsoleLogger(),
                 //{"nlog", new NLogWrapper(false,"nlog.log") },
-                {"storage", new CommandStorage() }
+                {"storage", new CommandStorage(new ChunkedStorageBackend<string>("temp")) }
             };
 
             context.Service = DeviceService.Create()
@@ -120,6 +123,8 @@ namespace CarrotLink.Client
                 cts.Dispose();
                 context.Service.Dispose();
                 context.Device.Dispose();
+                foreach (var logger in context.Loggers.Values)
+                    logger.Dispose();
             }
 
             Console.WriteLine("Press any key to exit...");

@@ -1,6 +1,6 @@
 ﻿namespace CarrotLink.Core.Storage
 {
-    public interface IStorageBackend<T>
+    public interface IStorageBackend<T> : IDisposable
     {
         public long Count { get; }
 

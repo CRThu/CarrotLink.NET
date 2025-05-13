@@ -16,17 +16,17 @@ namespace CarrotLink.Core.Logging
         Error,
     }
 
-    public interface ILogger
+    public interface ILogger : IDisposable
     {
 
     }
 
-    public interface IPacketLogger
+    public interface IPacketLogger : ILogger
     {
         void HandlePacket(IPacket packet);
     }
 
-    public interface IRuntimeLogger
+    public interface IRuntimeLogger : ILogger
     {
         void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null);
     }

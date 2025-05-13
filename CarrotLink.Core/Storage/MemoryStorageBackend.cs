@@ -7,6 +7,7 @@ namespace CarrotLink.Core.Storage
         private readonly ConcurrentQueue<T> _quene = new();
         public long Count => _quene.Count;
 
+
         public void Enquene(T item)
         {
             _quene.Enqueue(item);
@@ -15,6 +16,11 @@ namespace CarrotLink.Core.Storage
         public bool TryDequeue(out T? item)
         {
             return _quene.TryDequeue(out item);
+        }
+
+        public void Dispose()
+        {
+            _quene.Clear();
         }
     }
 }

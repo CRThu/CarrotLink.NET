@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Storage
 {
-    public class GeneralStorage<T> : IStorage<T>
+    public class GeneralStorage<T> : IStorage<T>, IDisposable
     {
         private readonly IStorageBackend<T> _backend;
         private Func<IPacket, bool>? _filter;
@@ -39,6 +39,11 @@ namespace CarrotLink.Core.Storage
         public bool TryRead(out T? data)
         {
             return _backend.TryDequeue(out data);
+        }
+
+        public void Dispose()
+        {
+            _backend.Dispose();
         }
     }
 
