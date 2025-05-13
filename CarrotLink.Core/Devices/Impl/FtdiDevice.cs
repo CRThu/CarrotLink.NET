@@ -117,7 +117,8 @@ namespace CarrotLink.Core.Devices.Impl
 
                     //Console.WriteLine($"(FTDI.GetRxBytesAvailable){ftStatus},{bytesToRead}");
 
-                    if (bytesRead + bytesExpected > bufferSizeLimit || bytesToRead < _d2xxMaxReadSize)
+                    // 数据超限则返回
+                    if (bytesRead + bytesExpected > bufferSizeLimit)
                         break;
 
                     Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Read(rxBuffer, bytesExpected, ref currentBytesRead));
@@ -126,6 +127,8 @@ namespace CarrotLink.Core.Devices.Impl
                     rxBuffer.AsMemory(0, (int)currentBytesRead).CopyTo(buffer.Slice(bytesRead));
 
                     bytesRead += (int)currentBytesRead;
+                    if (currentBytesRead < _d2xxMaxReadSize)
+                        break;
                 }
                 _totalReadBytes += bytesRead;
                 //Console.WriteLine($"(FTDI.DEV)Read {bytesRead} bytes, Total: {TotalReceivedBytes} bytes");
