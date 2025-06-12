@@ -51,18 +51,18 @@ namespace CarrotLink.Client
             //    PortName = "COM17",
             //    BaudRate = 115200,
             //};
-            //var device = new SerialDevice(config);
+            //context.Device = new SerialDevice(config);
 
-            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
-            //var config = new FtdiConfiguration
-            //{
-            //    DeviceId = "ftdi-1",
-            //    SerialNumber = "",
-            //    Mode = FtdiCommMode.SyncFifo,
-            //    Model = FtdiModel.Ft2232h,
-            //};
-            //var device = new FtdiDevice(config);
+            var config = new FtdiConfiguration
+            {
+                DeviceId = "ftdi-1",
+                SerialNumber = "FTA8EKKFA",
+                Mode = FtdiCommMode.AsyncFifo,
+                Model = FtdiModel.Ft2232h,
+            };
+            context.Device = new FtdiDevice(config);
 
             await context.Device.ConnectAsync();
             Console.WriteLine("Initialize done.");
@@ -71,8 +71,8 @@ namespace CarrotLink.Client
             context.Protocol = new RawAsciiProtocol();
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
-                //new ConsoleLogger(),
-                //{"nlog", new NLogWrapper(false,"nlog.log") },
+                //{"console",new ConsoleLogger() },
+                {"nlog", new NLogWrapper(true,"nlog.log") },
                 {"storage", new CommandStorage(new ChunkedStorageBackend<string>("temp")) }
             };
 
@@ -209,7 +209,7 @@ namespace CarrotLink.Client
             object _lock = new();
             var commandStorage = (context.Loggers["storage"] as CommandStorage);
 
-            var readTask = new Task(() =>
+            var readTask = Task.Run(() =>
             {
                 while (!cts.Token.IsCancellationRequested)
                 {

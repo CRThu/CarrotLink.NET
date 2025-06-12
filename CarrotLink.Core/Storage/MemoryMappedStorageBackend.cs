@@ -61,7 +61,7 @@ namespace CarrotLink.Core.Storage
             if (!_currentReadChunk.TryRead(out item))
             {
                 var newChunk = GetChunk(_currentReadChunk.ChunkId + 1);
-                if (newChunk == null)
+                if (newChunk == null || !newChunk.HasData)
                 {
                     item = default;
                     return false;
