@@ -17,6 +17,7 @@ using CarrotLink.Core.Storage;
 using System.IO.MemoryMappedFiles;
 using System.Reflection;
 using System.IO;
+using CarrotLink.Core.Discovery.Models;
 
 namespace CarrotLink.Client
 {
@@ -36,7 +37,7 @@ namespace CarrotLink.Client
             Console.WriteLine("Hello, World!");
 
             Console.WriteLine("Discovering device...");
-            await DiscoverAllDevicesAsync();
+            DeviceInfo[] devices = DiscoverAllDevices().ToArray();
             Console.WriteLine("Discovering done.");
 
 
@@ -101,13 +102,13 @@ namespace CarrotLink.Client
                     switch (k.KeyChar)
                     {
                         case '1':
-                            await LoopbackTestAsync(context);
+                            LoopbackTest(context);
                             break;
                         case '2':
-                            await EnterCommandsAsync(context);
+                            EnterCommands(context);
                             break;
                         case '3':
-                            await DebugTest();
+                            DebugTest();
                             break;
                         default:
                             Console.WriteLine("无效选择");
@@ -131,7 +132,7 @@ namespace CarrotLink.Client
             Console.ReadKey();
         }
 
-        private static async Task DiscoverAllDevicesAsync()
+        private static IEnumerable<DeviceInfo> DiscoverAllDevices()
         {
             Console.WriteLine("Searching for all devices...");
 
@@ -152,20 +153,19 @@ namespace CarrotLink.Client
             {
                 Console.WriteLine("No devices were found.");
             }
-
-            await Task.CompletedTask;
+            return allDevices;
         }
 
-        private static async Task LoopbackTestAsync(CommContext context)
+        private static void LoopbackTest(CommContext context)
         {
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
             int packetNum = 1000000;
             for (int i = 0; i < packetNum; i++)
             {
-                await context.Service.SendAscii($"{i:D18}");
+                context.Service.SendAscii($"{i:D18}");
                 if (i % 10000 == 0)
-                    await Task.Delay(10);
+                    Thread.Sleep(10);
             }
 
             Console.WriteLine("数据测试发送完成");
@@ -199,11 +199,9 @@ namespace CarrotLink.Client
                     }
                 }
             }
-
-            await Task.CompletedTask;
         }
 
-        private static async Task EnterCommandsAsync(CommContext context)
+        private static void EnterCommands(CommContext context)
         {
             CancellationTokenSource cts = new CancellationTokenSource();
             object _lock = new();
@@ -235,7 +233,7 @@ namespace CarrotLink.Client
                     break;
                 }
 
-                await context.Service.SendAscii(line!.ToString());
+                context.Service.SendAscii(line!.ToString());
                 lock (_lock)
                 {
                     Console.WriteLine($"Sent: {(line == "" ? "<empty>" : line)}");
@@ -248,7 +246,7 @@ namespace CarrotLink.Client
             //await context.Storage.ExportAsJsonAsync("data.json");
         }
 
-        private static async Task DebugTest()
+        private static void DebugTest()
         {
             //try
             //{
@@ -289,7 +287,6 @@ namespace CarrotLink.Client
             //{
             //    Console.WriteLine(ex.ToString());
             //}
-            await Task.CompletedTask;
         }
     }
 }
