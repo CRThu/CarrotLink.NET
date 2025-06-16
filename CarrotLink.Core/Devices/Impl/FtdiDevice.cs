@@ -45,7 +45,7 @@ namespace CarrotLink.Core.Devices.Impl
             ftdi = new FTDI();
         }
 
-        public override async Task ConnectAsync(CancellationToken cancellationToken = default)
+        public override void Connect()
         {
             if (IsConnected)
                 return;
@@ -72,17 +72,14 @@ namespace CarrotLink.Core.Devices.Impl
 
             _totalReadBytes = 0;
             _totalWriteBytes = 0;
-
-            await Task.CompletedTask;
         }
 
-        public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
+        public override void Disconnect()
         {
             if (ftdi != null && ftdi.IsOpen)
             {
                 Ftd2xxNetDecorator.Ftd2xxNetWrapper(() => ftdi.Close());
             }
-            await Task.CompletedTask;
         }
 
         //private int GetBytesToRead()

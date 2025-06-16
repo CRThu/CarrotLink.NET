@@ -15,16 +15,14 @@ namespace CarrotLink.Core.Devices.Impl
         {
         }
 
-        public override async Task ConnectAsync(CancellationToken cancellationToken = default)
+        public override void Connect()
         {
             IsConnected = true;
-            await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
+        public override void Disconnect()
         {
             IsConnected = false;
-            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)

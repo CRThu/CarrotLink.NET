@@ -64,7 +64,7 @@ namespace CarrotLink.Client
             };
             context.Device = new FtdiDevice(config);
 
-            await context.Device.ConnectAsync();
+            context.Device.Connect();
             Console.WriteLine("Initialize done.");
 
             Console.WriteLine("Initialize service...");
@@ -119,7 +119,7 @@ namespace CarrotLink.Client
             {
                 cts.Cancel();
                 await Task.WhenAll(procTask, pollTask);
-                await context.Device.DisconnectAsync();
+                context.Device.Disconnect();
                 cts.Dispose();
                 context.Service.Dispose();
                 context.Device.Dispose();

@@ -25,7 +25,7 @@ namespace CarrotLink.Core.Devices.Impl
 
         //public event EventHandler<byte[]>? DataReceived;
 
-        public override async Task ConnectAsync(CancellationToken cancellationToken = default)
+        public override void Connect()
         {
             if (IsConnected)
                 return;
@@ -57,11 +57,9 @@ namespace CarrotLink.Core.Devices.Impl
 
             _serialPort.Open();
             IsConnected = true;
-
-            await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
+        public override void Disconnect()
         {
             _cts.Cancel();
             _cts.Dispose();
@@ -76,7 +74,6 @@ namespace CarrotLink.Core.Devices.Impl
                 _serialPort.Close();
                 IsConnected = false;
             }
-            await Task.CompletedTask.ConfigureAwait(false);
         }
 
         public override async Task<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
