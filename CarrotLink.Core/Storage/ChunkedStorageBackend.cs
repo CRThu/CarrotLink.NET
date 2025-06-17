@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Storage
 {
+    /// <summary>
+    /// NotImplementedException
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class ChunkedStorageBackend<T> : IStorageBackend<T>, IDisposable
     {
         #region 配置参数
@@ -26,6 +30,8 @@ namespace CarrotLink.Core.Storage
 
         public ChunkedStorageBackend(string storageName)
         {
+            throw new NotImplementedException();
+
             _basePath = Path.Combine(Path.GetTempPath(), storageName);
             Directory.CreateDirectory(_basePath);
 
@@ -33,7 +39,7 @@ namespace CarrotLink.Core.Storage
             _currentReadChunk = GetChunk(0);
         }
 
-        public void Enquene(T item)
+        public void Write(T item)
         {
             var data = Serialize(item);
             var required = 4 + data.Length;
@@ -48,7 +54,7 @@ namespace CarrotLink.Core.Storage
             return;
         }
 
-        public bool TryDequeue(out T? item)
+        public bool TryRead(out T? item)
         {
             var chunk = _currentReadChunk ?? GetChunk(0);
             if (chunk == null)
@@ -74,6 +80,12 @@ namespace CarrotLink.Core.Storage
             Interlocked.Increment(ref _totalReadCount);
             return true;
         }
+
+        public Task<T> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
 
         private MemoryMappedChunk GetChunk(int index)
         {

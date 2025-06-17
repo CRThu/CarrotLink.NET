@@ -32,13 +32,18 @@ namespace CarrotLink.Core.Storage
             if (_filter != null && _filter(packet))
             {
                 var item = _converter(packet);
-                _backend.Enquene(item);
+                _backend.Write(item);
             }
         }
 
         public bool TryRead(out T? data)
         {
-            return _backend.TryDequeue(out data);
+            return _backend.TryRead(out data);
+        }
+
+        public async Task<T?> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            return await _backend.ReadAsync(cancellationToken);
         }
 
         public void Dispose()

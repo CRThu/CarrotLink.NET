@@ -31,9 +31,41 @@ namespace CarrotLink.Client
 
     internal class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             Console.WriteLine("[CarrotLink.Client]");
+
+            var backend = new ListStorageBackend<int>();
+            int iter = 10000000;
+            Task w = Task.Run(() =>
+            {
+                for (int i = 0; i < iter; i++)
+                {
+                    backend.Write(i);
+                    if (i % 10000000 == 0)
+                    {
+                        Console.WriteLine($"WRITE:{i}/{iter - 1}");
+                    }
+                }
+            });
+
+            w.Wait();
+            Thread.Sleep(1000);
+            var items = backend.GetAll();
+            Console.WriteLine($"{items.Count}");
+            for (int i = 0; i < iter; i++)
+            {
+                if (i != items[i])
+                {
+                    Console.WriteLine($"ERROR:{i}!={items[i]}");
+                    break;
+                }
+            }
+            Console.WriteLine("Check done!");
+
+
+            return;
+
             Console.WriteLine("Hello, World!");
 
             Console.WriteLine("Discovering device...");
@@ -74,7 +106,7 @@ namespace CarrotLink.Client
             {
                 //{"console",new ConsoleLogger() },
                 {"nlog", new NLogWrapper(true,"nlog.log") },
-                {"storage", new CommandStorage(new ChunkedStorageBackend<string>("temp")) }
+                {"storage", new CommandStorage(new MemoryStorageBackend<string>()) }
             };
 
             context.Service = DeviceService.Create()
@@ -119,7 +151,7 @@ namespace CarrotLink.Client
             finally
             {
                 cts.Cancel();
-                await Task.WhenAll(procTask, pollTask);
+                Task.WhenAll(procTask, pollTask).Wait();
                 context.Device.Disconnect();
                 cts.Dispose();
                 context.Service.Dispose();
