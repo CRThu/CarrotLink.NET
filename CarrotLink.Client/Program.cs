@@ -34,37 +34,12 @@ namespace CarrotLink.Client
         static void Main(string[] args)
         {
             Console.WriteLine("[CarrotLink.Client]");
+            Console.WriteLine("StorageBackend test...");
+            StorageBackendTest.StorageBackendSyncTest();
+            StorageBackendTest.StorageBackendAsyncTest();
 
-            var backend = new ListStorageBackend<int>();
-            int iter = 10000000;
-            Task w = Task.Run(() =>
-            {
-                for (int i = 0; i < iter; i++)
-                {
-                    backend.Write(i);
-                    if (i % 10000000 == 0)
-                    {
-                        Console.WriteLine($"WRITE:{i}/{iter - 1}");
-                    }
-                }
-            });
-
-            w.Wait();
-            Thread.Sleep(1000);
-            var items = backend.GetAll();
-            Console.WriteLine($"{items.Count}");
-            for (int i = 0; i < iter; i++)
-            {
-                if (i != items[i])
-                {
-                    Console.WriteLine($"ERROR:{i}!={items[i]}");
-                    break;
-                }
-            }
-            Console.WriteLine("Check done!");
-
-
-            return;
+            Console.Write("press to run device");
+            Console.ReadKey();
 
             Console.WriteLine("Hello, World!");
 

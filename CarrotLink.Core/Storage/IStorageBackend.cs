@@ -2,7 +2,7 @@
 {
     public interface IStorageNew<T> : IDisposable
     {
-        public long Count { get; }
+        public int Count { get; }
 
         void Write(T item);
 

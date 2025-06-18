@@ -13,7 +13,8 @@ namespace CarrotLink.Core.Storage
         private readonly Task _processingTask;
         private readonly CancellationTokenSource _linkedCts;
 
-        public long Count => _storage.Count;
+        public int Count => _storage.Count;
+        public T this[int index] => _storage[index];
 
         public ListStorageBackend(int? boundedCapacity = null, CancellationToken cancellationToken = default)
         {
@@ -53,9 +54,31 @@ namespace CarrotLink.Core.Storage
 
             try
             {
-                await foreach (var item in _channel.Reader.ReadAllAsync(ct))
+                //await foreach (var item in _channel.Reader.ReadAllAsync(ct))
+                //{
+                //    _storage.Add(item);
+                //}
+
+                // 性能优化
+                var buffer = new T[4096];
+                while (await _channel.Reader.WaitToReadAsync(ct))
                 {
-                    _storage.Add(item);
+                    int index = 0;
+                    while (_channel.Reader.TryRead(out var item))
+                    {
+                        buffer[index++] = item;
+                        if (index == buffer.Length)
+                        {
+                            _storage.AddRange(buffer);
+                            index = 0;
+                        }
+                    }
+                    if (index > 0)
+                    {
+                        _storage.AddRange(buffer.AsSpan(0, index));
+                        //await Task.Delay(20, ct);
+                        await Task.Yield();
+                    }
                 }
             }
             catch (ChannelClosedException) when (_isDisposed)
