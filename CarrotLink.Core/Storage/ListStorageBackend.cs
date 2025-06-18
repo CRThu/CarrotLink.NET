@@ -12,9 +12,29 @@ namespace CarrotLink.Core.Storage
         private volatile bool _isDisposed;
         private readonly Task _processingTask;
         private readonly CancellationTokenSource _linkedCts;
+        private readonly object _lock = new object();
 
-        public int Count => _storage.Count;
-        public T this[int index] => _storage[index];
+        public int Count
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _storage.Count;
+                }
+            }
+        }
+
+        public T this[int index]
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _storage[index];
+                }
+            }
+        }
 
         public ListStorageBackend(int? boundedCapacity = null, CancellationToken cancellationToken = default)
         {
@@ -69,13 +89,19 @@ namespace CarrotLink.Core.Storage
                         buffer[index++] = item;
                         if (index == buffer.Length)
                         {
-                            _storage.AddRange(buffer);
+                            lock (_lock)
+                            {
+                                _storage.AddRange(buffer);
+                            }
                             index = 0;
                         }
                     }
                     if (index > 0)
                     {
-                        _storage.AddRange(buffer.AsSpan(0, index));
+                        lock (_lock)
+                        {
+                            _storage.AddRange(buffer.AsSpan(0, index));
+                        }
                         //await Task.Delay(20, ct);
                         await Task.Yield();
                     }
@@ -91,9 +117,37 @@ namespace CarrotLink.Core.Storage
             }
         }
 
-        public IReadOnlyList<T> GetAll()
+        public bool TryRead(int index, out T? data)
         {
-            return _storage.ToArray();
+            lock (_lock)
+            {
+                if (index < _storage.Count)
+                {
+                    data = _storage[index];
+                    return true;
+                }
+                else
+                {
+                    data = default;
+                    return false;
+                }
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _storage.Clear();
+            }
+        }
+
+        public IReadOnlyList<T> ToArray()
+        {
+            lock (_lock)
+            {
+                return _storage.ToArray();
+            }
         }
 
         public void Dispose()

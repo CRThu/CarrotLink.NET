@@ -10,19 +10,22 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Storage
 {
-    public class GeneralStorage<T> : IStorage<T>, IDisposable
+    public class GeneralStorage<T> : IPacketLogger, IDisposable
     {
-        private readonly IStorageBackend<T> _backend;
+        private readonly IStorageNew<T> _backend;
         private Func<IPacket, bool>? _filter;
         private Func<IPacket, T> _converter;
 
-        public long Count => _backend.Count;
+        private int _cursor = 0;
+
+        public int Count => _backend.Count;
+        public T this[int index] => _backend[index];
 
         public GeneralStorage(Func<IPacket, T> converter,
             Func<IPacket, bool>? filter = default,
-            IStorageBackend<T>? backend = default)
+            IStorageNew<T>? backend = default)
         {
-            _backend = backend ?? new MemoryStorageBackend<T>();
+            _backend = backend ?? new ListStorageBackend<T>(null);
             _converter = converter;
             _filter = filter;
         }
@@ -38,12 +41,12 @@ namespace CarrotLink.Core.Storage
 
         public bool TryRead(out T? data)
         {
-            return _backend.TryRead(out data);
+            return _backend.TryRead(_cursor, out data);
         }
 
-        public async Task<T?> ReadAsync(CancellationToken cancellationToken = default)
+        public void Clear()
         {
-            return await _backend.ReadAsync(cancellationToken);
+            _backend.Clear();
         }
 
         public void Dispose()
@@ -54,7 +57,7 @@ namespace CarrotLink.Core.Storage
 
     public class CommandStorage : GeneralStorage<string>
     {
-        public CommandStorage(IStorageBackend<string>? backend = default) : base(
+        public CommandStorage(IStorageNew<string>? backend = default) : base(
             converter: p => p.ToString(),
             filter: p => p.Type == PacketType.Command,
             backend: backend)

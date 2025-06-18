@@ -37,6 +37,10 @@ namespace CarrotLink.Client
                     Console.WriteLine($"ERROR:{i} != {backend[i]}");
                     break;
                 }
+                if (i % 10000000 == 0)
+                {
+                    Console.WriteLine($"READ:{i}/{iter}");
+                }
             }
             Console.WriteLine("Check done.");
             cancellationTokenSource.Cancel();

@@ -4,9 +4,15 @@
     {
         public int Count { get; }
 
+        public T this[int index] { get; }
+
         void Write(T item);
 
-        public IReadOnlyList<T> GetAll();
+        public bool TryRead(int index, out T? data);
+
+        public void Clear();
+
+        public IReadOnlyList<T> ToArray();
     }
 
     public interface IStorageBackend<T> : IDisposable
