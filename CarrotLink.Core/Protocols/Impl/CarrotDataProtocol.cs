@@ -79,7 +79,7 @@ namespace CarrotLink.Core.Protocols.Impl
             {
                 AsciiPacket p => EncodeAscii(p.Payload),
                 BinaryPacket p => EncodeBinary(p.Payload),
-                RegisterPacket p => EncodeRegister(p.Payload._oper, p.Payload._regfile, p.Payload._addr, p.Payload._value),
+                RegisterRawPacket p => EncodeRegister(p.Payload._oper, p.Payload._regfile, p.Payload._addr, p.Payload._value),
                 _ => throw new NotSupportedException()
             };
         }

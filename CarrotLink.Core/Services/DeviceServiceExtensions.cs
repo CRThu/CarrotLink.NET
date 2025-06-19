@@ -24,6 +24,6 @@ namespace CarrotLink.Core.Services
             int registerFile,
             int address,
             int value
-        ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, value));
+        ) => service.WriteAsync(new RegisterRawPacket(operation, registerFile, address, value));
     }
 }

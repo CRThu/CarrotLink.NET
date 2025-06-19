@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Models
 {
-    public record RegisterPacket : IPacket
+    public record RegisterRawPacket : IPacket
     {
         private readonly PacketType _type;
         private readonly (int _oper, int _regfile, int _addr, int _value) _data;
@@ -14,7 +14,7 @@ namespace CarrotLink.Core.Protocols.Models
         public PacketType Type => _type;
         public (int _oper, int _regfile, int _addr, int _value) Payload => _data;
 
-        public RegisterPacket(int oper, int regfile, int addr, int value, PacketType type = PacketType.Command)
+        public RegisterRawPacket(int oper, int regfile, int addr, int value, PacketType type = PacketType.Command)
         {
             _data._oper = oper;
             _data._regfile = regfile;
