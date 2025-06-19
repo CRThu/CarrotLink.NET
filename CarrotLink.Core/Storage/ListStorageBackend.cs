@@ -5,7 +5,7 @@ namespace CarrotLink.Core.Storage
     /// <summary>
     /// 基于 Channel 的高并发存储后端实现
     /// </summary>
-    public sealed class ListStorageBackend<T> : IStorageNew<T>
+    public sealed class ListStorageBackend<T> : IStorageBackend<T>
     {
         private readonly Channel<T> _channel;
         private readonly List<T> _storage = new();

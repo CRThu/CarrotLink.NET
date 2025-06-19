@@ -81,7 +81,7 @@ namespace CarrotLink.Client
             {
                 //{"console",new ConsoleLogger() },
                 {"nlog", new NLogWrapper(true,"nlog.log") },
-                {"storage", new CommandStorage(new ListStorageBackend<string>(null,cts.Token)) }
+                {"storage", new CommandStorage() }
             };
 
             context.Service = DeviceService.Create()

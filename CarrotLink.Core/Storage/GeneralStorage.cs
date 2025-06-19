@@ -12,7 +12,7 @@ namespace CarrotLink.Core.Storage
 {
     public class GeneralStorage<T> : IPacketLogger, IDisposable
     {
-        private readonly IStorageNew<T> _backend;
+        private readonly IStorageBackend<T> _backend;
         private Func<IPacket, bool>? _filter;
         private Func<IPacket, T> _converter;
 
@@ -23,7 +23,7 @@ namespace CarrotLink.Core.Storage
 
         public GeneralStorage(Func<IPacket, T> converter,
             Func<IPacket, bool>? filter = default,
-            IStorageNew<T>? backend = default)
+            IStorageBackend<T>? backend = default)
         {
             _backend = backend ?? new ListStorageBackend<T>(null);
             _converter = converter;
@@ -57,12 +57,19 @@ namespace CarrotLink.Core.Storage
 
     public class CommandStorage : GeneralStorage<string>
     {
-        public CommandStorage(IStorageNew<string>? backend = default) : base(
+        public CommandStorage(IStorageBackend<string>? backend = default) : base(
             converter: p => p.ToString(),
             filter: p => p.Type == PacketType.Command,
             backend: backend)
         {
 
+        }
+    }
+    public class DataStorage : GeneralStorage<string>
+    {
+        public DataStorage(Func<IPacket, string> converter, Func<IPacket, bool>? filter = null, IStorageBackend<string>? backend = null) : base(converter, filter, backend)
+        {
+            throw new NotImplementedException();
         }
     }
 }
