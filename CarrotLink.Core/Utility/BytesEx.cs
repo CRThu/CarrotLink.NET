@@ -201,5 +201,6 @@ namespace CarrotLink.Core.Utility
                  | (bytes[offset + 2] & 0xff) << 8
                  | (bytes[offset + 3] & 0xff) << 0;
         }
+
     }
 }

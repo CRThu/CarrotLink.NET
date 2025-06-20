@@ -9,10 +9,10 @@ namespace CarrotLink.Core.Protocols.Models
 {
     public interface IProtocol
     {
-        public static string Name { get; set; }
-        public static string Version { get; }
+        public string ProtocolName { get; }
+        public int ProtocolVersion { get; }
 
-        public byte[] GetBytes(IPacket packet);
-        public bool TryParse(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
+        public byte[] Encode(IPacket packet);
+        public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
     }
 }

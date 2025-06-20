@@ -70,7 +70,7 @@ namespace CarrotLink.Core.Services
                     while (!cancellationToken.IsCancellationRequested)
                     {
                         // parse until buffer has no complete packets
-                        bool parsed = _protocol.TryParse(ref buffer, out IPacket? packet);
+                        bool parsed = _protocol.TryDecode(ref buffer, out IPacket? packet);
                         if (!parsed || packet == null)
                             break;
 
@@ -104,7 +104,7 @@ namespace CarrotLink.Core.Services
                 throw new InvalidOperationException("Write Operation is running");
             try
             {
-                var pktBytes = _protocol.GetBytes(packet);
+                var pktBytes = _protocol.Encode(packet);
                 await _device.WriteAsync(pktBytes, cancellationToken);
                 Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
             }

@@ -11,36 +11,49 @@ using System.Xml;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public class RawAsciiProtocol : ProtocolBase
+    public class AsciiProtocol : ProtocolBase
     {
-        private enum RawAsciiProtocolParseStatus
-        {
-            IDLE,
-            XML_CMD_START,
-            XML_CMD_WAIT_TAG_HEAD_OPEN,
-            XML_CMD_WAIT_TAG_BIN_OPEN,
-            XML_CMD_WAIT_TAG_BIN_CONTENT,
-            XML_CMD_WAIT_TAG_CLOSE,
-            XML_CMD_XML_ERROR,
-            ASCII_CMD_WAIT_CRLF,
-        }
+        //private enum RawAsciiProtocolParseStatus
+        //{
+        //    IDLE,
+        //    XML_CMD_START,
+        //    XML_CMD_WAIT_TAG_HEAD_OPEN,
+        //    XML_CMD_WAIT_TAG_BIN_OPEN,
+        //    XML_CMD_WAIT_TAG_BIN_CONTENT,
+        //    XML_CMD_WAIT_TAG_CLOSE,
+        //    XML_CMD_XML_ERROR,
+        //    ASCII_CMD_WAIT_CRLF,
+        //}
 
-        public new static string Version { get; } = "RAPV1";
+        public override string ProtocolName => nameof(AsciiProtocol);
+        public override int ProtocolVersion => 1;
 
-        public RawAsciiProtocol()
-        {
-        }
-
-        public override byte[] GetBytes(IPacket packet)
+        public override byte[] Encode(IPacket packet)
         {
             return packet switch
             {
-                AsciiPacket p => (p.Payload + "\r\n").AsciiToBytes(),
-                _ => throw new NotSupportedException("RawAsciiProtocol only supports AsciiPacket")
+                ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
+                _ => throw new NotSupportedException($"Unsupported packet type: {packet.Type}")
             };
         }
 
-        protected override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
+        public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
+        {
+            packet = default;
+            var reader = new SequenceReader<byte>(buffer);
+
+            // decode command packet
+            if (reader.TryReadTo(out ReadOnlySequence<byte> commandSeq, (byte)'\n', true))
+            {
+                var cmd = Encoding.ASCII.GetString(commandSeq).TrimEnd('\r');
+                packet = new CommandPacket(cmd);
+                buffer = buffer.Slice(reader.Position);
+                return true;
+            }
+            return false;
+        }
+        /*
+        public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = default;
 
@@ -124,5 +137,6 @@ namespace CarrotLink.Core.Protocols.Impl
             }
             return true;
         }
+        */
     }
 }
