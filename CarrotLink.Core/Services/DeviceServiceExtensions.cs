@@ -9,21 +9,32 @@ namespace CarrotLink.Core.Services
 {
     public static class DeviceServiceExtensions
     {
-        // ASCII 指令（自动追加 CRLF）
+        // ASCII 指令
         public static Task SendAscii(this DeviceService service, string message)
-            => service.WriteAsync(new AsciiPacket(message));
+            => service.WriteAsync(new CommandPacket(message));
 
-        // 二进制数据（直接传递 byte[]）
+        // 二进制数据
         public static Task SendBinary(this DeviceService service, byte[] data)
-            => service.WriteAsync(new BinaryPacket(data));
+            => service.WriteAsync(new DataPacket(data));
 
-        // 寄存器操作（参数命名明确）
+        // 寄存器操作
         public static Task SendRegister(
             this DeviceService service,
-            int operation,
+            RegisterOperation operation,
             int registerFile,
             int address,
             int value
-        ) => service.WriteAsync(new RegisterRawPacket(operation, registerFile, address, value));
+        ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, value));
+
+        // 寄存器操作
+        public static Task SendRegister(
+            this DeviceService service,
+            RegisterOperation operation,
+            int registerFile,
+            int address,
+            int startBits,
+            int endBits,
+            int value
+        ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, startBits, endBits, value));
     }
 }

@@ -1,5 +1,4 @@
 ﻿using CarrotLink.Core.Protocols.Models;
-using CarrotLink.Core.Protocols.Models.Old;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
