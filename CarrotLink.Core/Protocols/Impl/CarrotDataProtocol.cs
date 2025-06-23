@@ -10,14 +10,6 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public enum CDP_TYPE
-    {
-        UNKNOWN = 0x00,
-        ASCII = 0x30,
-        DATA = 0x40,
-        REG = 0xA0
-    };
-
     public class CarrotDataProtocol : ProtocolBase
     {
         public CarrotDataProtocol(int cmdlen = 256, int datalen = 256)
@@ -74,19 +66,6 @@ namespace CarrotLink.Core.Protocols.Impl
             };
         }
 
-        public static CDP_TYPE GetCdpType(byte protocolId)
-        {
-            if (protocolId >= 0x30 && protocolId <= 0x3F)
-                return CDP_TYPE.ASCII;
-            else if (protocolId >= 0x40 && protocolId <= 0x4F)
-                return CDP_TYPE.DATA;
-            else if (protocolId >= 0xA0 && protocolId <= 0xAF)
-                return CDP_TYPE.REG;
-            else
-                return CDP_TYPE.UNKNOWN;
-        }
-
-
         public override byte[] Encode(IPacket packet)
         {
             byte protocolId = packet switch
@@ -101,7 +80,7 @@ namespace CarrotLink.Core.Protocols.Impl
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
                 IDataPacket data => data.Payload,
-                IRegisterPacket reg => EncodeRegister(reg),
+                IRegisterPacket reg => CarrotDataProtocolRegisterPacket.EncodeRegister(reg),
                 _ => Array.Empty<byte>(),
             };
 
@@ -111,56 +90,65 @@ namespace CarrotLink.Core.Protocols.Impl
         public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = null;
+
+            // 最小帧长度64
+            if (buffer.Length < 64)
+                return false;
+
             SequenceReader<byte> reader = new SequenceReader<byte>(buffer);
-            int packetLen = 0;
+            int packetLength;
 
-            // 处理数据流直到不完整包或结束
-            while (true)
+            // 读取帧头
+            if (!reader.TryRead(out byte startByte))
+                return false;
+            if (startByte != StartByte)
+                throw new InvalidDataException($"Cannot decode packet with start byte: 0x{startByte:02X}(expect 0x{StartByte:02X}).");
+            // 读取协议id
+            if (!reader.TryRead(out byte protocolId))
+                return false;
+            // 协议长度计算
+            packetLength = GetFrameLength(protocolId);
+            if (buffer.Length < packetLength)
+                return false;
+            // 跳过控制位
+            reader.Advance(2);
+            // 读取payload长度
+            if (!reader.TryReadExact(2, out var payloadLengthSeq))
+                return false;
+            ushort payloadLength = BitConverter.ToUInt16(payloadLengthSeq.ToArray());
+            // 读取payload(payload实际长度为payloadLength,完整payload长度为packetLength-10)
+            var payloadSeq = buffer.Slice(reader.Position, payloadLength);
+            byte[] payload = payloadSeq.ToArray();
+            reader.Advance(packetLength - 10);
+            // CRC
+            reader.Advance(2);
+            // 帧尾
+            if (!reader.TryRead(out byte endByte))
+                return false;
+            if (endByte != EndByte)
+                throw new InvalidDataException($"Cannot decode packet with end byte: 0x{endByte:02X}(expect 0x{EndByte:02X}).");
+            // 创建包
+            switch (protocolId)
             {
-                // 读取帧头
-                if ((reader.Remaining < 1) || (!reader.TryPeek(0, out byte frameStart)))
-                {
-                    // 不完整包结构则结束
+                case Command64PacketId:
+                case Command256PacketId:
+                case Command2048PacketId:
+                    packet = new CommandPacket(Encoding.ASCII.GetString(payload));
                     break;
-                }
-                if ((reader.Remaining < 2) || (!reader.TryPeek(1, out byte protocolId)))
-                {
-                    // 不完整包结构则结束
+                case Data64PacketId:
+                case Data256PacketId:
+                case Data2048PacketId:
+                    packet = new DataPacket(payload);
                     break;
-                }
-                packetLen = GetFrameLength(protocolId);
-                if (packetLen == -1)
-                {
+                case RegisterRequestPacketId:
+                case RegisterReplyPacketId:
+                    packet = CarrotDataProtocolRegisterPacket.DecodeRegister(payload);
                     break;
-                }
-                if ((reader.Remaining < packetLen) || (!reader.TryPeek(packetLen - 1, out byte frameEnd)))
-                {
-                    // 不完整包结构则结束
-                    break;
-                }
-
-                var x = reader.TryReadExact(packetLen, out var pktSeq);
-                if (x)
-                {
-                    var pktArray = pktSeq.ToArray();
-                    switch (GetCdpType(pktArray[1]))
-                    {
-                        case CDP_TYPE.DATA:
-                            packet = new BinaryPacket(pktArray, PacketType.Data);
-                            break;
-                        case CDP_TYPE.ASCII:
-                            packet = new BinaryPacket(pktArray, PacketType.Command);
-                            break;
-                        case CDP_TYPE.REG:
-                            packet = new BinaryPacket(pktArray, PacketType.Command);
-                            break;
-                        default:
-                            break;
-                    }
-                    buffer = buffer.Slice(buffer.GetPosition(packetLen));
-                    break;
-                }
+                default:
+                    throw new NotImplementedException();
             }
+            // 更新缓冲区
+            buffer = buffer.Slice(reader.Position);
             return packet != null;
         }
 
@@ -184,7 +172,11 @@ namespace CarrotLink.Core.Protocols.Impl
             return frame;
         }
 
-        private byte[] EncodeRegister(IRegisterPacket packet)
+    }
+
+    public static class CarrotDataProtocolRegisterPacket
+    {
+        public static byte[] EncodeRegister(IRegisterPacket packet)
         {
             int payloadLength = packet.Operation switch
             {
@@ -232,15 +224,25 @@ namespace CarrotLink.Core.Protocols.Impl
             return payload;
         }
 
-        private IRegisterPacket DecodeRegister(byte[] payload)
+        public static IRegisterPacket DecodeRegister(byte[] payload)
         {
-            return new RegisterPacket(
+            if (payload.Length == 16)
+                return new RegisterPacket(
+                    (RegisterOperation)BitConverter.ToInt32(payload, 0),
+                    BitConverter.ToInt32(payload, 4),
+                    BitConverter.ToInt32(payload, 8),
+                    BitConverter.ToInt32(payload, 12)
+                    );
+            else
+                return new RegisterPacket(
+                    (RegisterOperation)BitConverter.ToUInt32(payload, 0),
+                    BitConverter.ToInt32(payload, 4),
+                    BitConverter.ToInt32(payload, 8),
+                    BitConverter.ToInt32(payload, 12),
+                    BitConverter.ToInt32(payload, 16),
+                    BitConverter.ToInt32(payload, 20)
+                    );
 
-                );
         }
-    }
-
-    public static class CarrotDataProtocolRegisterPacket
-    {
     }
 }

@@ -53,19 +53,6 @@ namespace CarrotLink.Core.Protocols.Models.Old
             };
         }
 
-        public static CDP_TYPE GetCdpType(byte protocolId)
-        {
-            if (protocolId >= 0x30 && protocolId <= 0x3F)
-                return CDP_TYPE.ASCII;
-            else if (protocolId >= 0x40 && protocolId <= 0x4F)
-                return CDP_TYPE.DATA;
-            else if (protocolId >= 0xA0 && protocolId <= 0xAF)
-                return CDP_TYPE.REG;
-            else
-                return CDP_TYPE.UNKNOWN;
-        }
-
-
         public byte[] Pack(byte[] payload, byte? protocolId, byte? streamId)
         {
             int len = GetPacketLength((byte)protocolId);
