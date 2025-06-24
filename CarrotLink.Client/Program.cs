@@ -76,7 +76,7 @@ namespace CarrotLink.Client
             Console.WriteLine("Initialize done.");
 
             Console.WriteLine("Initialize service...");
-            context.Protocol = new AsciiProtocol();
+            context.Protocol = new CarrotAsciiProtocol();
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //{"console",new ConsoleLogger() },

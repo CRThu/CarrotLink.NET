@@ -29,20 +29,20 @@ namespace CarrotLink.Core.Protocols.Impl
             };
         }
 
-        private const byte StartByte = 0x3C;
-        private const byte EndByte = 0x3E;
+        public const byte StartByte = 0x3C;
+        public const byte EndByte = 0x3E;
 
-        private const byte Command64PacketId = 0x31;
-        private const byte Command256PacketId = 0x32;
-        private const byte Command2048PacketId = 0x33;
-        private const byte Data64PacketId = 0x41;
-        private const byte Data256PacketId = 0x42;
-        private const byte Data2048PacketId = 0x43;
-        private const byte RegisterRequestPacketId = 0xA0;
-        private const byte RegisterReplyPacketId = 0xA8;
+        public const byte Command64PacketId = 0x31;
+        public const byte Command256PacketId = 0x32;
+        public const byte Command2048PacketId = 0x33;
+        public const byte Data64PacketId = 0x41;
+        public const byte Data256PacketId = 0x42;
+        public const byte Data2048PacketId = 0x43;
+        public const byte RegisterRequestPacketId = 0xA0;
+        public const byte RegisterReplyPacketId = 0xA8;
 
-        private byte CommandPacketId { get; init; }
-        private byte DataPacketId { get; init; }
+        public byte CommandPacketId { get; init; }
+        public byte DataPacketId { get; init; }
 
 
         public override string ProtocolName => nameof(CarrotDataProtocol);
@@ -171,6 +171,19 @@ namespace CarrotLink.Core.Protocols.Impl
             return frame;
         }
 
+    }
+
+    public static class CarrotDataProtocolDataPacket
+    {
+        public static byte[] EncodeData(IDataPacket packet)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static IDataPacket DecodeData(byte[] payload)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public static class CarrotDataProtocolRegisterPacket
