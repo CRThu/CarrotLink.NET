@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 
@@ -11,20 +12,29 @@ namespace CarrotLink.Core.Protocols.Models
     public enum PacketType { Command, Data, Register }
     public enum RegisterOperation { Write, ReadRequest, ReadResult, BitsWrite, BitsReadRequest, BitsReadResult }
 
+    public enum DataType { INT64, INT32, INT16, INT8, FP64 }
+    public enum DataEncoding { OffsetBinary, TwosComplement }
+    public enum DataEndian { LittleEndian, BigEndian }
 
     public interface IPacket
     {
-        PacketType Type { get; }
+        public PacketType PacketType { get; }
     }
 
     public interface ICommandPacket : IPacket
     {
-        string Command { get; }
+        public string Command { get; }
     }
 
     public interface IDataPacket : IPacket
     {
-        byte[] Payload { get; }
+        public DataType DataType { get; }
+        public DataEncoding Encoding { get; }
+        public DataEndian Endian { get; }
+
+        public int[] Channels { get; }
+        public byte[] RawData { get; }
+        public T[] GetValues<T>(int channel);
     }
 
     public interface IRegisterPacket : IPacket
@@ -39,7 +49,7 @@ namespace CarrotLink.Core.Protocols.Models
 
     public record CommandPacket(string Command) : ICommandPacket
     {
-        public PacketType Type => PacketType.Command;
+        public PacketType PacketType => PacketType.Command;
 
         public override string ToString() => AddLineEnding(Command);
 
@@ -50,14 +60,44 @@ namespace CarrotLink.Core.Protocols.Models
         }
     }
 
-    public record DataPacket(byte[] Payload) : IDataPacket
+    public record DataPacket : IDataPacket
     {
-        public PacketType Type => PacketType.Data;
+        public PacketType PacketType => PacketType.Data;
+
+        public DataType DataType { get; init; }
+        public DataEncoding Encoding { get; init; }
+        public DataEndian Endian { get; init; }
+
+        public required int[] Channels { get; init; }
+        public required byte[] RawData { get; init; }
+
+        private DataPacket(DataType type, DataEncoding encoding, DataEndian endian, int channel, IEnumerable<byte> rawData)
+        {
+            DataType = type;
+            Encoding = encoding;
+            Endian = endian;
+            Channels = new int[1] { channel };
+            RawData = rawData.ToArray();
+        }
+
+        private DataPacket(DataType type, DataEncoding encoding, DataEndian endian, IEnumerable<int> channels, IEnumerable<byte> rawData)
+        {
+            DataType = type;
+            Encoding = encoding;
+            Endian = endian;
+            Channels = channels.ToArray();
+            RawData = rawData.ToArray();
+        }
+
+        public T[] GetValues<T>(int channel)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public record RegisterPacket : IRegisterPacket
     {
-        public PacketType Type => PacketType.Register;
+        public PacketType PacketType => PacketType.Register;
         public RegisterOperation Operation { get; init; }
         public int Regfile { get; init; }
         public int Address { get; init; }

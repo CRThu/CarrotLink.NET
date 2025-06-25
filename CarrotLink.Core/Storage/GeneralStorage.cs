@@ -59,7 +59,7 @@ namespace CarrotLink.Core.Storage
     {
         public CommandStorage(IStorageBackend<string>? backend = default) : base(
             converter: p => p.ToString(),
-            filter: p => p.Type == PacketType.Command,
+            filter: p => p.PacketType == PacketType.Command,
             backend: backend)
         {
 

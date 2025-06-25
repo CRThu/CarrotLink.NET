@@ -23,7 +23,7 @@ namespace CarrotLink.Core.Protocols.Impl
             return packet switch
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
-                _ => throw new NotSupportedException($"Unsupported packet type: {packet.Type}")
+                _ => throw new NotSupportedException($"Unsupported packet type: {packet.PacketType}")
             };
         }
 

@@ -4,6 +4,8 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Linq;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -72,13 +74,13 @@ namespace CarrotLink.Core.Protocols.Impl
                 ICommandPacket => CommandPacketId,
                 IDataPacket => DataPacketId,
                 IRegisterPacket => RegisterRequestPacketId,
-                _ => throw new NotSupportedException($"Unsupported packet type: {packet.Type}")
+                _ => throw new NotSupportedException($"Unsupported packet type: {packet.PacketType}")
             };
 
             byte[] payload = packet switch
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
-                IDataPacket data => data.Payload,
+                IDataPacket data => CarrotDataProtocolDataPacket.EncodeData(data),
                 IRegisterPacket reg => CarrotDataProtocolRegisterPacket.EncodeRegister(reg),
                 _ => Array.Empty<byte>(),
             };
@@ -109,8 +111,10 @@ namespace CarrotLink.Core.Protocols.Impl
             packetLength = GetFrameLength(protocolId);
             if (buffer.Length < packetLength)
                 return false;
-            // 跳过控制位
-            reader.Advance(2);
+            // 读取控制位和streamId
+            if (!reader.TryReadExact(3, out var controlFlagsAndStreamIdSeq))
+                return false;
+            byte[] controlFlagsAndStreamId = controlFlagsAndStreamIdSeq.ToArray();
             // 读取payload长度
             if (!reader.TryReadExact(2, out var payloadLengthSeq))
                 return false;
@@ -137,7 +141,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 case Data64PacketId:
                 case Data256PacketId:
                 case Data2048PacketId:
-                    packet = new DataPacket(payload);
+                    packet = CarrotDataProtocolDataPacket.DecodeData(payload, controlFlagsAndStreamId);
                     break;
                 case RegisterRequestPacketId:
                 case RegisterReplyPacketId:
@@ -175,12 +179,92 @@ namespace CarrotLink.Core.Protocols.Impl
 
     public static class CarrotDataProtocolDataPacket
     {
+        public static class DataTypeConverter
+        {
+            public static int ToFlag(DataType type)
+            {
+                return type switch
+                {
+                    DataType.INT32 => 0x00,
+                    DataType.INT16 => 0x01,
+                    DataType.INT8 => 0x02,
+                    _ => throw new NotImplementedException(),
+                };
+            }
+
+            public static DataType FromFlag(int flag)
+            {
+                return flag switch
+                {
+                    0x00 => DataType.INT32,
+                    0x01 => DataType.INT16,
+                    0x02 => DataType.INT8,
+                    _ => throw new NotImplementedException(),
+                };
+            }
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        public struct DataPacketFlagsAndStreamId
+        {
+            [FieldOffset(0)] private byte StreamIdByte;
+            [FieldOffset(0)] private byte FlagsLowByte;
+            [FieldOffset(0)] private byte FlagsHighByte;
+
+            public DataPacketFlagsAndStreamId(byte[] flags)
+            {
+                if (flags == null || flags.Length != 3)
+                    throw new ArgumentException("flags is not 3 bytes data");
+                StreamIdByte = flags[0];
+                FlagsLowByte = flags[1];
+                FlagsHighByte = flags[2];
+            }
+
+            /// <summary>
+            /// FlagH[0]: Interleaved
+            /// </summary>
+            public bool IsInterleaved
+            {
+                get => (FlagsHighByte & 0x01) != 0;
+                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x01) : (FlagsHighByte & 0xFE));
+            }
+
+            /// <summary>
+            /// FlagH[1]: IsBigEndian
+            /// </summary>
+            public bool IsBigEndian
+            {
+                get => (FlagsHighByte & 0x02) != 0;
+                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x02) : (FlagsHighByte & 0xFD));
+            }
+
+            /// <summary>
+            /// FlagH[2]: IsTwosComplement
+            /// </summary>
+            public bool IsTwosComplement
+            {
+                get => (FlagsHighByte & 0x04) != 0;
+                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x04) : (FlagsHighByte & 0xFB));
+            }
+
+            /// <summary>
+            /// FlagH[4:3]: DataWidth, 0:32b, 1:16b, 2:8b
+            /// </summary>
+            public DataType DataType
+            {
+                get => DataTypeConverter.FromFlag((FlagsHighByte & 0x18) >> 3);
+                set => FlagsHighByte = (byte)((FlagsHighByte & 0xE7) | (DataTypeConverter.ToFlag(value) << 3));
+            }
+
+            // TODO
+        }
+
         public static byte[] EncodeData(IDataPacket packet)
         {
             throw new NotImplementedException();
         }
 
-        public static IDataPacket DecodeData(byte[] payload)
+        public static IDataPacket DecodeData(byte[] payload, byte[] controlFlagsAndStreamId)
         {
             throw new NotImplementedException();
         }
@@ -188,6 +272,35 @@ namespace CarrotLink.Core.Protocols.Impl
 
     public static class CarrotDataProtocolRegisterPacket
     {
+        public static class RegisterOperationConverter
+        {
+            public static uint ToCmd(RegisterOperation operation)
+            {
+                return operation switch
+                {
+                    RegisterOperation.Write => 0x00,
+                    RegisterOperation.ReadRequest => 0x01,
+                    RegisterOperation.ReadResult => 0x01,
+                    RegisterOperation.BitsWrite => 0x10,
+                    RegisterOperation.BitsReadRequest => 0x11,
+                    RegisterOperation.BitsReadResult => 0x11,
+                    _ => throw new NotImplementedException(),
+                };
+            }
+
+            public static RegisterOperation FromCmd(uint cmd, bool isMaster)
+            {
+                return cmd switch
+                {
+                    0x00 => RegisterOperation.Write,
+                    0x01 => isMaster ? RegisterOperation.ReadRequest : RegisterOperation.ReadResult,
+                    0x10 => RegisterOperation.BitsWrite,
+                    0x11 => isMaster ? RegisterOperation.BitsReadRequest : RegisterOperation.BitsReadResult,
+                    _ => throw new NotImplementedException(),
+                };
+            }
+        }
+
         public static byte[] EncodeRegister(IRegisterPacket packet)
         {
             int payloadLength = packet.Operation switch
@@ -201,16 +314,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 _ => throw new NotImplementedException(),
             };
 
-            int operationCmd = packet.Operation switch
-            {
-                RegisterOperation.Write => 0x00,
-                RegisterOperation.ReadRequest => 0x01,
-                RegisterOperation.ReadResult => 0x01,
-                RegisterOperation.BitsWrite => 0x10,
-                RegisterOperation.BitsReadRequest => 0x11,
-                RegisterOperation.BitsReadResult => 0x11,
-                _ => throw new NotImplementedException(),
-            };
+            uint operationCmd = RegisterOperationConverter.ToCmd(packet.Operation);
 
             byte[] payload = new byte[payloadLength];
             if (payloadLength == 16)
@@ -240,21 +344,20 @@ namespace CarrotLink.Core.Protocols.Impl
         {
             if (payload.Length == 16)
                 return new RegisterPacket(
-                    (RegisterOperation)BitConverter.ToInt32(payload, 0),
+                    RegisterOperationConverter.FromCmd(BitConverter.ToUInt32(payload, 0), false),
                     BitConverter.ToInt32(payload, 4),
                     BitConverter.ToInt32(payload, 8),
                     BitConverter.ToInt32(payload, 12)
                     );
             else
                 return new RegisterPacket(
-                    (RegisterOperation)BitConverter.ToUInt32(payload, 0),
+                    RegisterOperationConverter.FromCmd(BitConverter.ToUInt32(payload, 0), false),
                     BitConverter.ToInt32(payload, 4),
                     BitConverter.ToInt32(payload, 8),
                     BitConverter.ToInt32(payload, 12),
                     BitConverter.ToInt32(payload, 16),
                     BitConverter.ToInt32(payload, 20)
                     );
-
         }
     }
 }
