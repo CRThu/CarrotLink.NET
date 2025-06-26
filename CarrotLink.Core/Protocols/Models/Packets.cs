@@ -68,10 +68,10 @@ namespace CarrotLink.Core.Protocols.Models
         public DataEncoding Encoding { get; init; }
         public DataEndian Endian { get; init; }
 
-        public required int[] Channels { get; init; }
-        public required byte[] RawData { get; init; }
+        public int[] Channels { get; init; }
+        public byte[] RawData { get; init; }
 
-        private DataPacket(DataType type, DataEncoding encoding, DataEndian endian, int channel, IEnumerable<byte> rawData)
+        public DataPacket(DataType type, DataEncoding encoding, DataEndian endian, int channel, IEnumerable<byte> rawData)
         {
             DataType = type;
             Encoding = encoding;
@@ -80,7 +80,7 @@ namespace CarrotLink.Core.Protocols.Models
             RawData = rawData.ToArray();
         }
 
-        private DataPacket(DataType type, DataEncoding encoding, DataEndian endian, IEnumerable<int> channels, IEnumerable<byte> rawData)
+        public DataPacket(DataType type, DataEncoding encoding, DataEndian endian, IEnumerable<int> channels, IEnumerable<byte> rawData)
         {
             DataType = type;
             Encoding = encoding;

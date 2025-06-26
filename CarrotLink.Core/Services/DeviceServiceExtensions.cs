@@ -15,7 +15,8 @@ namespace CarrotLink.Core.Services
 
         // 二进制数据
         public static Task SendBinary(this DeviceService service, byte[] data)
-            => service.WriteAsync(new DataPacket(data));
+           => throw new NotImplementedException();
+        // => service.WriteAsync(new DataPacket(data));
 
         // 寄存器操作
         public static Task SendRegister(

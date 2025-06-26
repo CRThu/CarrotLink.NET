@@ -205,13 +205,13 @@ namespace CarrotLink.Core.Protocols.Impl
         }
 
         [StructLayout(LayoutKind.Explicit)]
-        public struct DataPacketFlagsAndStreamId
+        public struct DataPacketConfig
         {
             [FieldOffset(0)] private byte StreamIdByte;
             [FieldOffset(0)] private byte FlagsLowByte;
             [FieldOffset(0)] private byte FlagsHighByte;
 
-            public DataPacketFlagsAndStreamId(byte[] flags)
+            public DataPacketConfig(byte[] flags)
             {
                 if (flags == null || flags.Length != 3)
                     throw new ArgumentException("flags is not 3 bytes data");
@@ -238,6 +238,12 @@ namespace CarrotLink.Core.Protocols.Impl
                 set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x02) : (FlagsHighByte & 0xFD));
             }
 
+            public DataEndian Endian
+            {
+                get => IsBigEndian ? DataEndian.BigEndian : DataEndian.LittleEndian;
+                set => IsBigEndian = (value == DataEndian.BigEndian);
+            }
+
             /// <summary>
             /// FlagH[2]: IsTwosComplement
             /// </summary>
@@ -245,6 +251,12 @@ namespace CarrotLink.Core.Protocols.Impl
             {
                 get => (FlagsHighByte & 0x04) != 0;
                 set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x04) : (FlagsHighByte & 0xFB));
+            }
+
+            public DataEncoding Encoding
+            {
+                get => IsTwosComplement ? DataEncoding.TwosComplement : DataEncoding.OffsetBinary;
+                set => IsTwosComplement = (value == DataEncoding.TwosComplement);
             }
 
             /// <summary>
@@ -256,17 +268,83 @@ namespace CarrotLink.Core.Protocols.Impl
                 set => FlagsHighByte = (byte)((FlagsHighByte & 0xE7) | (DataTypeConverter.ToFlag(value) << 3));
             }
 
-            // TODO
+            /// <summary>
+            /// InterleavedStreamsIdMask: stream id mask when interleaved=1
+            /// </summary>
+            public ushort InterleavedStreamsIdMask
+            {
+                get => (ushort)(FlagsLowByte << 8 | StreamIdByte);
+                set
+                {
+                    FlagsLowByte = (byte)(value >> 8);
+                    StreamIdByte = (byte)(value & 0xFF);
+                }
+            }
+
+            /// <summary>
+            /// StreamsId: interleaved ? [flag streamid] mask : streamid
+            /// </summary>
+            public int[] StreamsId
+            {
+                get
+                {
+                    if (!IsInterleaved)
+                    {
+                        return new int[] { StreamIdByte };
+                    }
+                    else
+                    {
+                        var channels = new List<int>(16);
+                        ushort mask = InterleavedStreamsIdMask;
+                        for (int i = 0; i < 16; i++)
+                        {
+                            if ((mask & (1 << i)) != 0)
+                                channels.Add(i);
+                        }
+                        return channels.ToArray();
+                    }
+                }
+                set
+                {
+                    if (!IsInterleaved)
+                    {
+                        if (value.Length != 1)
+                            throw new ArgumentException($"try to set {value.Length} channels in interleaved mode.");
+
+                        if (value[0] > 0 && value[0] < 256)
+                        {
+                            StreamIdByte = (byte)value[0];
+                        }
+                        else
+                            throw new ArgumentException($"channel {value[0]} is out of range");
+                    }
+                    else
+                    {
+                        ushort mask = 0;
+                        for (int i = 0; i < value.Length; i++)
+                        {
+                            if (value[i] > 0 && value[i] < 16)
+                            {
+                                mask |= (ushort)(1 << value[i]);
+                            }
+                            else
+                                throw new ArgumentException($"channel {value[i]} is out of range");
+                        }
+                    }
+                }
+            }
         }
 
         public static byte[] EncodeData(IDataPacket packet)
         {
-            throw new NotImplementedException();
+            return packet.RawData;
         }
 
         public static IDataPacket DecodeData(byte[] payload, byte[] controlFlagsAndStreamId)
         {
-            throw new NotImplementedException();
+            DataPacketConfig dpc = new DataPacketConfig(controlFlagsAndStreamId);
+            var dataPacket = new DataPacket(dpc.DataType, dpc.Encoding, dpc.Endian, dpc.StreamsId, payload);
+            return dataPacket;
         }
     }
 
