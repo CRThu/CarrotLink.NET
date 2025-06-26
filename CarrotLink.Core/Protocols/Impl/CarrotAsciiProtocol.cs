@@ -16,7 +16,7 @@ namespace CarrotLink.Core.Protocols.Impl
         public override string ProtocolName => nameof(CarrotAsciiProtocol);
         public override int ProtocolVersion => 2;
 
-        private readonly CarrotDataProtocol _innerProtocol = new CarrotDataProtocol();
+        private readonly CarrotBinaryProtocol _innerProtocol = new CarrotBinaryProtocol();
 
         public override byte[] Encode(IPacket packet)
         {
@@ -37,7 +37,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 return false;
 
             // 解码嵌套协议
-            if (startByte == CarrotDataProtocol.StartByte)
+            if (startByte == CarrotBinaryProtocol.StartByte)
                 return _innerProtocol.TryDecode(ref buffer, out packet);
 
             // 检查ascii协议完整包

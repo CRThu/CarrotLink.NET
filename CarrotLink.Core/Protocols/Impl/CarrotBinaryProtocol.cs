@@ -11,9 +11,9 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public class CarrotDataProtocol : ProtocolBase
+    public class CarrotBinaryProtocol : ProtocolBase
     {
-        public CarrotDataProtocol(int cmdlen = 256, int datalen = 256)
+        public CarrotBinaryProtocol(int cmdlen = 256, int datalen = 256)
         {
             CommandPacketId = cmdlen switch
             {
@@ -47,7 +47,7 @@ namespace CarrotLink.Core.Protocols.Impl
         public byte DataPacketId { get; init; }
 
 
-        public override string ProtocolName => nameof(CarrotDataProtocol);
+        public override string ProtocolName => nameof(CarrotBinaryProtocol);
 
         public override int ProtocolVersion => 0;
 
@@ -80,8 +80,8 @@ namespace CarrotLink.Core.Protocols.Impl
             byte[] payload = packet switch
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
-                IDataPacket data => CarrotDataProtocolDataPacket.EncodeData(data),
-                IRegisterPacket reg => CarrotDataProtocolRegisterPacket.EncodeRegister(reg),
+                IDataPacket data => CarrotBinaryProtocolDataPacket.EncodeData(data),
+                IRegisterPacket reg => CarrotBinaryProtocolRegisterPacket.EncodeRegister(reg),
                 _ => Array.Empty<byte>(),
             };
 
@@ -141,11 +141,11 @@ namespace CarrotLink.Core.Protocols.Impl
                 case Data64PacketId:
                 case Data256PacketId:
                 case Data2048PacketId:
-                    packet = CarrotDataProtocolDataPacket.DecodeData(payload, controlFlagsAndStreamId);
+                    packet = CarrotBinaryProtocolDataPacket.DecodeData(payload, controlFlagsAndStreamId);
                     break;
                 case RegisterRequestPacketId:
                 case RegisterReplyPacketId:
-                    packet = CarrotDataProtocolRegisterPacket.DecodeRegister(payload);
+                    packet = CarrotBinaryProtocolRegisterPacket.DecodeRegister(payload);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -177,7 +177,7 @@ namespace CarrotLink.Core.Protocols.Impl
 
     }
 
-    public static class CarrotDataProtocolDataPacket
+    public static class CarrotBinaryProtocolDataPacket
     {
         public static class DataTypeConverter
         {
@@ -348,7 +348,7 @@ namespace CarrotLink.Core.Protocols.Impl
         }
     }
 
-    public static class CarrotDataProtocolRegisterPacket
+    public static class CarrotBinaryProtocolRegisterPacket
     {
         public static class RegisterOperationConverter
         {
