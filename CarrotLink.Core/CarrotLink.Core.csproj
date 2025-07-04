@@ -4,25 +4,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Title>$(AssemblyName)</Title>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CarrotLink.Core.Ftd2xx" Version="1.0.0" />
+    <PackageReference Include="CarrotLink.Core.NiVisa" Version="1.0.0" />
     <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="FTD2XX_NET">
-      <HintPath>..\Library\FTD2XX\FTD2XX_NET.dll</HintPath>
-    </Reference>
-    <Reference Include="NationalInstruments.Common">
-      <HintPath>..\Library\NationalInstruments\NationalInstruments.Common.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="NationalInstruments.VisaNS">
-      <HintPath>..\Library\NationalInstruments\NationalInstruments.VisaNS.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
   </ItemGroup>
 
 </Project>
