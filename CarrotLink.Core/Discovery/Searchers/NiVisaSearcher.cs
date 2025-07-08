@@ -13,7 +13,7 @@ namespace CarrotLink.Core.Discovery.Searchers
 {
     public class NiVisaSearcher : IDeviceSearcher
     {
-        public DeviceType SupportedType => DeviceType.Gpib;
+        public DeviceType SupportedType => DeviceType.NiVisa;
         public NiVisaSearcher()
         {
             Assembly.LoadFrom("NationalInstruments.Common.dll");
@@ -28,9 +28,9 @@ namespace CarrotLink.Core.Discovery.Searchers
                 //string expression = "GPIB?*INSTR";
                 string[] res = ResourceManager.GetLocalManager().FindResources(expression);
                 return res.Select(resourceName => new DeviceInfo() {
-                    Interface = "VISA",
+                    Type = DeviceType.NiVisa/*"VISA"*/,
                     Name = resourceName,
-                    Description = "NI-VISA DEVICE"
+                    Description = "NI-VISA"
                 });
             }
             catch (Exception ex)

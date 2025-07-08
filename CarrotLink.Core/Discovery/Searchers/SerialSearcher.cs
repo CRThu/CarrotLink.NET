@@ -12,7 +12,7 @@ namespace CarrotLink.Core.Discovery.Searchers
 {
     public class SerialSearcher : IDeviceSearcher
     {
-        public DeviceType SupportedType => DeviceType.SerialPort;
+        public DeviceType SupportedType => DeviceType.Serial;
 
 
         public SerialSearcher()
@@ -24,8 +24,9 @@ namespace CarrotLink.Core.Discovery.Searchers
         {
             try
             {
-                return SerialPort.GetPortNames().Select(portName => new DeviceInfo() {
-                    Interface = "SerialPort",
+                return SerialPort.GetPortNames().Select(portName => new DeviceInfo()
+                {
+                    Type = DeviceType.Serial /*"SerialPort"*/,
                     Name = portName,
                     Description = "串口设备"
                 });

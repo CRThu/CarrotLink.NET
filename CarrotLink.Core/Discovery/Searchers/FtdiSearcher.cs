@@ -15,7 +15,7 @@ namespace CarrotLink.Core.Discovery.Searchers
 {
     public class FtdiSearcher : IDeviceSearcher
     {
-        public DeviceType SupportedType => DeviceType.Ft2232;
+        public DeviceType SupportedType => DeviceType.Ftdi;
         public FtdiSearcher()
         {
         }
@@ -70,7 +70,7 @@ namespace CarrotLink.Core.Discovery.Searchers
                 }
 #endif
                 return ftdiDeviceList.Select(dev => new DeviceInfo() {
-                    Interface = "FTDI",
+                    Type = DeviceType.Ftdi /*"FTDI"*/,
                     Name = dev.SerialNumber,
                     Description = dev.Description
                 });

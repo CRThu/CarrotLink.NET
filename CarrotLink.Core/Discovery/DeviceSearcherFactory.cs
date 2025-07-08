@@ -11,9 +11,9 @@ namespace CarrotLink.Core.Discovery
         public DeviceSearcherFactory()
         {
             _searchers = new Dictionary<DeviceType, IDeviceSearcher> {
-                [DeviceType.SerialPort] = new SerialSearcher(),
-                [DeviceType.Gpib] = new NiVisaSearcher(),
-                [DeviceType.Ft2232] = new FtdiSearcher()
+                [DeviceType.Serial] = new SerialSearcher(),
+                [DeviceType.NiVisa] = new NiVisaSearcher(),
+                [DeviceType.Ftdi] = new FtdiSearcher()
             };
         }
 

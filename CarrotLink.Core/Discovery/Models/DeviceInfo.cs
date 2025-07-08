@@ -8,9 +8,10 @@ namespace CarrotLink.Core.Discovery.Models
 {
     public enum DeviceType
     {
-        SerialPort,
-        Gpib,
-        Ft2232
+        Unknown,
+        Serial,
+        NiVisa,
+        Ftdi
     }
 
     /// <summary>
@@ -18,7 +19,7 @@ namespace CarrotLink.Core.Discovery.Models
     /// </summary>
     public record DeviceInfo
     {
-        public string Interface { get; init; }
+        public DeviceType Type { get; init; }
         public string Name { get; init; }
         public string Description { get; init; }
     }
