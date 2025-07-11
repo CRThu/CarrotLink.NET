@@ -8,7 +8,6 @@ namespace CarrotLink.Core.Discovery.Models
 {
     public enum DeviceType
     {
-        Unknown,
         Serial,
         NiVisa,
         Ftdi
