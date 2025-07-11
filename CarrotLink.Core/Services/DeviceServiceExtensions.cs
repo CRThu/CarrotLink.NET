@@ -10,17 +10,17 @@ namespace CarrotLink.Core.Services
     public static class DeviceServiceExtensions
     {
         // ASCII 指令
-        public static Task SendAscii(this DeviceService service, string message)
+        public static Task SendAscii(this DeviceSession service, string message)
             => service.WriteAsync(new CommandPacket(message));
 
         // 二进制数据
-        public static Task SendBinary(this DeviceService service, byte[] data)
+        public static Task SendBinary(this DeviceSession service, byte[] data)
            => throw new NotImplementedException();
         // => service.WriteAsync(new DataPacket(data));
 
         // 寄存器操作
         public static Task SendRegister(
-            this DeviceService service,
+            this DeviceSession service,
             RegisterOperation operation,
             int registerFile,
             int address,
@@ -29,7 +29,7 @@ namespace CarrotLink.Core.Services
 
         // 寄存器操作
         public static Task SendRegister(
-            this DeviceService service,
+            this DeviceSession service,
             RegisterOperation operation,
             int registerFile,
             int address,

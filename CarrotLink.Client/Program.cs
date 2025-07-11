@@ -23,7 +23,7 @@ namespace CarrotLink.Client
 {
     public class CommContext
     {
-        public DeviceService Service;
+        public DeviceSession Session;
         public IDevice Device;
         public IProtocol Protocol;
         public Dictionary<string, IPacketLogger> Loggers;
@@ -76,7 +76,7 @@ namespace CarrotLink.Client
             Console.WriteLine("Initialize done.");
 
             Console.WriteLine("Initialize service...");
-            context.Protocol = new CarrotAsciiProtocol();
+            context.Protocol = new CarrotAsciiProtocol(null);
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //{"console",new ConsoleLogger() },
@@ -84,13 +84,13 @@ namespace CarrotLink.Client
                 {"storage", new CommandStorage() }
             };
 
-            context.Service = DeviceService.Create()
+            context.Session = DeviceSession.Create()
                 .WithDevice(context.Device)
                 .WithProtocol(context.Protocol)
                 .WithLoggers(context.Loggers.Values)
                 .Build();
-            Task procTask = context.Service.StartProcessingAsync(cts.Token);
-            Task pollTask = context.Service.StartAutoPollingAsync(15, cts.Token);
+            Task procTask = context.Session.StartProcessingAsync(cts.Token);
+            Task pollTask = context.Session.StartAutoPollingAsync(15, cts.Token);
             Console.WriteLine("Initialize done...");
 
             try
@@ -129,7 +129,7 @@ namespace CarrotLink.Client
                 Task.WhenAll(procTask, pollTask).Wait();
                 context.Device.Disconnect();
                 cts.Dispose();
-                context.Service.Dispose();
+                context.Session.Dispose();
                 context.Device.Dispose();
                 foreach (var logger in context.Loggers.Values)
                     logger.Dispose();
@@ -170,7 +170,7 @@ namespace CarrotLink.Client
             int packetNum = 1000000;
             for (int i = 0; i < packetNum; i++)
             {
-                context.Service.SendAscii($"{i:D18}");
+                context.Session.SendAscii($"{i:D18}");
                 if (i % 10000 == 0)
                     Thread.Sleep(10);
             }
@@ -179,7 +179,7 @@ namespace CarrotLink.Client
 
             Console.WriteLine("Press any key to see transfer info:");
             Console.ReadKey(intercept: true);
-            Console.WriteLine($"TotalBytesReceived: {context.Service.TotalReadBytes}");
+            Console.WriteLine($"TotalBytesReceived: {context.Session.TotalReadBytes}");
             Console.WriteLine($"Device TX: {context.Device.TotalWriteBytes}, RX: {context.Device.TotalReadBytes}");
 
             // 比较数据是否正确
@@ -240,7 +240,7 @@ namespace CarrotLink.Client
                     break;
                 }
 
-                context.Service.SendAscii(line!.ToString());
+                context.Session.SendAscii(line!.ToString());
                 lock (_lock)
                 {
                     Console.WriteLine($"Sent: {(line == "" ? "<empty>" : line)}");

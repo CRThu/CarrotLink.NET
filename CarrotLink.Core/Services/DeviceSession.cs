@@ -16,24 +16,32 @@ using System.Threading.Tasks;
 namespace CarrotLink.Core.Services
 {
     /// <summary>
-    /// 支持手动/定时/事件三种触发模式的接受服务调度以及发送方法
+    /// 设备会话，支持手动/定时/事件三种触发模式的接受服务调度以及发送方法
     /// </summary>
-    public class DeviceService : IDisposable
+    public class DeviceSession : IDisposable
     {
+        // component
         private IDevice _device;
         private IProtocol _protocol;
         private List<IPacketLogger> _loggers;
+
+        // task
+        private Task? _processingTask;
+        private Task? _pollingTask;
+        private CancellationTokenSource _cts = new CancellationTokenSource();
+        private int _isRunning;
 
         // for logger event
         public delegate void PacketHandler(IPacket packet);
         public event PacketHandler OnPacketReceived;
 
-        // for proc
+        // for processing
         private static ArrayPool<byte> _dataProcPool = ArrayPool<byte>.Create(128 * 1024 * 1024, 5);
         private readonly Pipe _pipe = new Pipe();
 
-        // timer for read
+        // for polling
         private PeriodicTimer? _pollingTimer;
+
 
         // lock flag
         private int _isReading = 0;
@@ -45,7 +53,7 @@ namespace CarrotLink.Core.Services
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceService(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers)
+        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers)
         {
             _device = device;
             _protocol = protocol;

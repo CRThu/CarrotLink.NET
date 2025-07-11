@@ -40,9 +40,13 @@ namespace CarrotLink.Core.Services
             return this;
         }
 
-        public DeviceService Build()
+        public DeviceSession Build()
         {
-            return new DeviceService(_device, _protocol, _loggers);
+            if (_device == null)
+                throw new InvalidOperationException("Device is not configured");
+            if (_protocol == null)
+                throw new InvalidOperationException("Protocol is not configured");
+            return new DeviceSession(_device, _protocol, _loggers);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Protocols.Models;
+﻿using CarrotLink.Core.Protocols.Configuration;
+using CarrotLink.Core.Protocols.Models;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -13,22 +14,30 @@ namespace CarrotLink.Core.Protocols.Impl
 {
     public class CarrotBinaryProtocol : ProtocolBase
     {
-        public CarrotBinaryProtocol(int cmdlen = 256, int datalen = 256)
+        public CarrotBinaryProtocol(CarrotBinaryProtocolConfiguration? config)
         {
-            CommandPacketId = cmdlen switch
+            if (config == null)
             {
-                64 => Command64PacketId,
-                256 => Command256PacketId,
-                2048 => Command2048PacketId,
-                _ => throw new NotImplementedException()
-            };
-            CommandPacketId = datalen switch
+                CommandPacketId = Command256PacketId;
+                DataPacketId = Data256PacketId;
+            }
+            else
             {
-                64 => Data64PacketId,
-                256 => Data256PacketId,
-                2048 => Data2048PacketId,
-                _ => throw new NotImplementedException()
-            };
+                CommandPacketId = config!.CommandPacketLength switch
+                {
+                    64 => Command64PacketId,
+                    256 => Command256PacketId,
+                    2048 => Command2048PacketId,
+                    _ => throw new NotImplementedException()
+                };
+                DataPacketId = config!.DataPacketLength switch
+                {
+                    64 => Data64PacketId,
+                    256 => Data256PacketId,
+                    2048 => Data2048PacketId,
+                    _ => throw new NotImplementedException()
+                };
+            }
         }
 
         public const byte StartByte = 0x3C;

@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Protocols.Models;
+﻿using CarrotLink.Core.Protocols.Configuration;
+using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Utility;
 using System;
 using System.Buffers;
@@ -15,8 +16,22 @@ namespace CarrotLink.Core.Protocols.Impl
     {
         public override string ProtocolName => nameof(CarrotAsciiProtocol);
         public override int ProtocolVersion => 2;
+        public CarrotAsciiProtocolConfiguration? config;
 
-        private readonly CarrotBinaryProtocol _innerProtocol = new CarrotBinaryProtocol();
+        private readonly CarrotBinaryProtocol _innerProtocol;
+
+        public CarrotAsciiProtocol(CarrotAsciiProtocolConfiguration? _config)
+        {
+            config = _config;
+            if (config != null)
+            {
+                _innerProtocol = new CarrotBinaryProtocol(new CarrotBinaryProtocolConfiguration()
+                {
+                    CommandPacketLength = 256,
+                    DataPacketLength = config.DataPacketLength
+                });
+            }
+        }
 
         public override byte[] Encode(IPacket packet)
         {
