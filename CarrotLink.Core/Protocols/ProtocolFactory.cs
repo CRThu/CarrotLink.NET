@@ -22,7 +22,7 @@ namespace CarrotLink.Core.Protocols
         {
             return type switch
             {
-                ProtocolType.CarrotAscii => new CarrotAsciiProtocol(),
+                ProtocolType.CarrotAscii => new CarrotAsciiProtocol(config as CarrotAsciiProtocolConfiguration),
                 ProtocolType.CarrotBinary => new CarrotBinaryProtocol(config as CarrotBinaryProtocolConfiguration),
                 _ => throw new NotSupportedException($"Unsupported protocol type: {type}")
             };

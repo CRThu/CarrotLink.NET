@@ -61,16 +61,16 @@ namespace CarrotLink.Client
             //};
             //context.Device = new SerialDevice(config);
 
-            //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
-            var config = new FtdiConfiguration
-            {
-                DeviceId = "ftdi-1",
-                SerialNumber = "FTA8EKKFA",
-                Mode = FtdiCommMode.AsyncFifo,
-                Model = FtdiModel.Ft2232h,
-            };
-            context.Device = new FtdiDevice(config);
+            //var config = new FtdiConfiguration
+            //{
+            //    DeviceId = "ftdi-1",
+            //    SerialNumber = "FTA8EKKFA",
+            //    Mode = FtdiCommMode.AsyncFifo,
+            //    Model = FtdiModel.Ft2232h,
+            //};
+            //context.Device = new FtdiDevice(config);
 
             context.Device.Connect();
             Console.WriteLine("Initialize done.");
@@ -89,8 +89,6 @@ namespace CarrotLink.Client
                 .WithProtocol(context.Protocol)
                 .WithLoggers(context.Loggers.Values)
                 .Build();
-            Task procTask = context.Session.StartProcessingAsync(cts.Token);
-            Task pollTask = context.Session.StartAutoPollingAsync(15, cts.Token);
             Console.WriteLine("Initialize done...");
 
             try
@@ -125,10 +123,7 @@ namespace CarrotLink.Client
             }
             finally
             {
-                cts.Cancel();
-                Task.WhenAll(procTask, pollTask).Wait();
                 context.Device.Disconnect();
-                cts.Dispose();
                 context.Session.Dispose();
                 context.Device.Dispose();
                 foreach (var logger in context.Loggers.Values)

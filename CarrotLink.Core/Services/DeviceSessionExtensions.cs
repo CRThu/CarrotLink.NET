@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Services
 {
-    public static class DeviceServiceExtensions
+    public static class DeviceSessionExtensions
     {
         // ASCII 指令
         public static Task SendAscii(this DeviceSession service, string message)

@@ -29,7 +29,7 @@ namespace CarrotLink.Core.Services
         private Task? _processingTask;
         private Task? _pollingTask;
         private CancellationTokenSource _cts = new CancellationTokenSource();
-        private int _isRunning;
+        //private int _isRunning;
 
         // for logger event
         public delegate void PacketHandler(IPacket packet);
@@ -53,49 +53,21 @@ namespace CarrotLink.Core.Services
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers)
+        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers, bool hasProcTask, bool hasPollTask, int pollingInterval = 15)
         {
             _device = device;
             _protocol = protocol;
             _loggers = new List<IPacketLogger>(loggers);
 
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
+
+            if (hasProcTask)
+                _processingTask = StartProcessingAsync(_cts.Token);
+            if (hasPollTask)
+                _pollingTask = StartAutoPollingAsync(pollingInterval, _cts.Token);
         }
 
-        public static DeviceServiceBuilder Create() => new DeviceServiceBuilder();
-
-        public async Task StartProcessingAsync(CancellationToken cancellationToken = default)
-        {
-            PipeReader? reader = _pipe.Reader;
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    // read when data received
-                    ReadResult readResult = await reader.ReadAsync(cancellationToken);
-
-                    var buffer = readResult.Buffer;
-                    while (!cancellationToken.IsCancellationRequested)
-                    {
-                        // parse until buffer has no complete packets
-                        bool parsed = _protocol.TryDecode(ref buffer, out IPacket? packet);
-                        if (!parsed || packet == null)
-                            break;
-
-                        // save to storage
-                        OnPacketReceived?.Invoke(packet);
-                    }
-
-                    // set examined position
-                    reader.AdvanceTo(buffer.Start, buffer.End);
-                }
-            }
-            catch (OperationCanceledException ex)
-            {
-                //reader.Complete(ex);
-                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
-            }
-        }
+        public static DeviceSessionBuilder Create() => new DeviceSessionBuilder();
 
         /// <summary>
         /// 发送方法
@@ -120,6 +92,12 @@ namespace CarrotLink.Core.Services
             {
                 Volatile.Write(ref _isWriting, 0);
             }
+        }
+
+        // 手动触发模式
+        public async Task<int> ManualReadAsync(CancellationToken cancellationToken = default)
+        {
+            return await SafeReadInternalAsync(cancellationToken);
         }
 
         private async Task<int> SafeReadInternalAsync(CancellationToken cancellationToken = default)
@@ -172,14 +150,41 @@ namespace CarrotLink.Core.Services
             }
         }
 
-        // 手动触发模式
-        public async Task<int> ManualReadAsync(CancellationToken cancellationToken = default)
+        private async Task StartProcessingAsync(CancellationToken cancellationToken = default)
         {
-            return await SafeReadInternalAsync(cancellationToken);
+            PipeReader? reader = _pipe.Reader;
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    // read when data received
+                    ReadResult readResult = await reader.ReadAsync(cancellationToken);
+
+                    var buffer = readResult.Buffer;
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        // parse until buffer has no complete packets
+                        bool parsed = _protocol.TryDecode(ref buffer, out IPacket? packet);
+                        if (!parsed || packet == null)
+                            break;
+
+                        // save to storage
+                        OnPacketReceived?.Invoke(packet);
+                    }
+
+                    // set examined position
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                //reader.Complete(ex);
+                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
+            }
         }
 
         // 定时轮询模式
-        public Task StartAutoPollingAsync(int intervalMs, CancellationToken cancellationToken = default)
+        private Task StartAutoPollingAsync(int intervalMs, CancellationToken cancellationToken = default)
         {
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
@@ -260,6 +265,10 @@ namespace CarrotLink.Core.Services
             {
                 _pipe.Writer.Complete();
                 _pipe.Reader.Complete();
+                _cts.Cancel();
+                _pollingTask?.Wait();
+                _processingTask?.Wait();
+                _cts.Dispose();
             }
             catch (Exception ex)
             {
