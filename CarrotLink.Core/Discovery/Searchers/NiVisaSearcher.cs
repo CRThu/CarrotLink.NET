@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Discovery.Interfaces;
+﻿using CarrotLink.Core.Devices;
+using CarrotLink.Core.Discovery.Interfaces;
 using CarrotLink.Core.Discovery.Models;
 using NationalInstruments.VisaNS;
 using System;
@@ -13,7 +14,7 @@ namespace CarrotLink.Core.Discovery.Searchers
 {
     public class NiVisaSearcher : IDeviceSearcher
     {
-        public DeviceType SupportedType => DeviceType.NiVisa;
+        public DriverType SupportedType => DriverType.NiVisa;
         public NiVisaSearcher()
         {
             Assembly.LoadFrom("NationalInstruments.Common.dll");
@@ -28,7 +29,8 @@ namespace CarrotLink.Core.Discovery.Searchers
                 //string expression = "GPIB?*INSTR";
                 string[] res = ResourceManager.GetLocalManager().FindResources(expression);
                 return res.Select(resourceName => new DeviceInfo() {
-                    Type = DeviceType.NiVisa/*"VISA"*/,
+                    Driver = DriverType.NiVisa/*"VISA"*/,
+                    Interface = InterfaceType.NiVisa,   // TODO: SERIAL/USB/GPIB
                     Name = resourceName,
                     Description = "NI-VISA"
                 });

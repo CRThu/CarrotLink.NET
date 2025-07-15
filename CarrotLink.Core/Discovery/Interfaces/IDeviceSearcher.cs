@@ -12,7 +12,7 @@ namespace CarrotLink.Core.Discovery.Interfaces
         /// <summary>
         /// 支持的设备类型
         /// </summary>
-        DeviceType SupportedType { get; }
+        DriverType SupportedType { get; }
 
         /// <summary>
         /// 搜索可用设备

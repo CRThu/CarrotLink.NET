@@ -148,7 +148,7 @@ namespace CarrotLink.Client
                 Console.WriteLine("The following devices were found:");
                 foreach (var device in allDevices)
                 {
-                    Console.WriteLine($"Interface: {device.Type}, Name: {device.Name}, Description: {device.Description}");
+                    Console.WriteLine($"Driver: {device.Driver}, Interface: {device.Interface}, Name: {device.Name}, Description: {device.Description}");
                 }
             }
             else

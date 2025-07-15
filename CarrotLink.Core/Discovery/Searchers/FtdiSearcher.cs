@@ -10,12 +10,13 @@ using static FTD2XX_NET.FTDI;
 using CarrotLink.Core.Discovery.Models;
 using CarrotLink.Core.Discovery.Interfaces;
 using CarrotLink.Core.Devices.Library;
+using CarrotLink.Core.Devices;
 
 namespace CarrotLink.Core.Discovery.Searchers
 {
     public class FtdiSearcher : IDeviceSearcher
     {
-        public DeviceType SupportedType => DeviceType.Ftdi;
+        public DriverType SupportedType => DriverType.Ftdi;
         public FtdiSearcher()
         {
         }
@@ -69,8 +70,10 @@ namespace CarrotLink.Core.Discovery.Searchers
                     Console.WriteLine("");
                 }
 #endif
-                return ftdiDeviceList.Select(dev => new DeviceInfo() {
-                    Type = DeviceType.Ftdi /*"FTDI"*/,
+                return ftdiDeviceList.Select(dev => new DeviceInfo()
+                {
+                    Driver = DriverType.Ftdi /*"FTDI"*/,
+                    Interface = InterfaceType.Ftdi,
                     Name = dev.SerialNumber,
                     Description = dev.Description
                 });

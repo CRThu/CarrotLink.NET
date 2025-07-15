@@ -5,6 +5,6 @@ namespace CarrotLink.Core.Discovery.Interfaces
 {
     public interface IDeviceSearcherFactory
     {
-        IDeviceSearcher GetSearcher(DeviceType type);
+        IDeviceSearcher GetSearcher(DriverType type);
     }
 }

@@ -6,18 +6,18 @@ namespace CarrotLink.Core.Discovery
 {
     public class DeviceSearcherFactory : IDeviceSearcherFactory
     {
-        private readonly Dictionary<DeviceType, IDeviceSearcher> _searchers;
+        private readonly Dictionary<DriverType, IDeviceSearcher> _searchers;
 
         public DeviceSearcherFactory()
         {
-            _searchers = new Dictionary<DeviceType, IDeviceSearcher> {
-                [DeviceType.Serial] = new SerialSearcher(),
-                [DeviceType.NiVisa] = new NiVisaSearcher(),
-                [DeviceType.Ftdi] = new FtdiSearcher()
+            _searchers = new Dictionary<DriverType, IDeviceSearcher> {
+                [DriverType.Serial] = new SerialSearcher(),
+                [DriverType.NiVisa] = new NiVisaSearcher(),
+                [DriverType.Ftdi] = new FtdiSearcher()
             };
         }
 
-        public IDeviceSearcher GetSearcher(DeviceType type)
+        public IDeviceSearcher GetSearcher(DriverType type)
         {
             if (_searchers.TryGetValue(type, out var searcher))
                 return searcher;

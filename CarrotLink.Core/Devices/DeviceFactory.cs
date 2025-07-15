@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Devices
 {
-    public enum DeviceType
+    public enum InterfaceType
     {
         Ftdi,
         Serial,
@@ -19,17 +19,17 @@ namespace CarrotLink.Core.Devices
 
     public static class DeviceFactory
     {
-        public static IDevice Create(DeviceType type, DeviceConfigurationBase config)
+        public static IDevice Create(InterfaceType type, DeviceConfigurationBase config)
         {
             return type switch
             {
-                DeviceType.Ftdi when config is FtdiConfiguration ftdiConfig =>
+                InterfaceType.Ftdi when config is FtdiConfiguration ftdiConfig =>
                     new FtdiDevice(ftdiConfig),
-                DeviceType.Serial when config is SerialConfiguration serialConfig =>
+                InterfaceType.Serial when config is SerialConfiguration serialConfig =>
                     new SerialDevice(serialConfig),
-                DeviceType.Loopback when config is LoopbackConfiguration loopbackConfig =>
+                InterfaceType.Loopback when config is LoopbackConfiguration loopbackConfig =>
                     new LoopbackDevice(loopbackConfig),
-                DeviceType.NiVisa when config is NiVisaConfiguration niVisaConfig =>
+                InterfaceType.NiVisa when config is NiVisaConfiguration niVisaConfig =>
                     throw new NotImplementedException("NiVisaDevice is not implemented yet"),
                 _ => throw new ArgumentException($"Invalid device type and configuration combination: {type} with {config.GetType().Name}")
             };

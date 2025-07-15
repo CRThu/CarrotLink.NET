@@ -12,7 +12,7 @@ namespace CarrotLink.Core.Discovery
             _factory = factory;
         }
 
-        public IEnumerable<DeviceInfo> DiscoverDevices(DeviceType type)
+        public IEnumerable<DeviceInfo> DiscoverDevices(DriverType type)
         {
             var searcher = _factory.GetSearcher(type);
             return searcher.Search();
@@ -20,8 +20,8 @@ namespace CarrotLink.Core.Discovery
 
         public IEnumerable<DeviceInfo> DiscoverAll()
         {
-            return Enum.GetValues(typeof(DeviceType))
-                .Cast<DeviceType>()
+            return Enum.GetValues(typeof(DriverType))
+                .Cast<DriverType>()
                 .SelectMany(type => DiscoverDevices(type).Select(device =>device));
         }
     }
