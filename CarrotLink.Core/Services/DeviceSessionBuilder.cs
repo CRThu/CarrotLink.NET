@@ -17,7 +17,7 @@ namespace CarrotLink.Core.Services
         private List<IPacketLogger> _loggers = new List<IPacketLogger>();
         private bool hasProcTask = true;
         private bool hasPollTask = true;
-        private int pollInterval;
+        private int pollInterval = 15;
 
         public DeviceSessionBuilder WithDevice(IDevice device)
         {
