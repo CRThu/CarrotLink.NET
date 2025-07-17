@@ -25,6 +25,10 @@ namespace CarrotLink.Core.Session
         private IProtocol _protocol;
         private List<IPacketLogger> _loggers;
 
+        public IDevice Device => _device;
+        public IProtocol Protocol => _protocol;
+        public List<IPacketLogger> Loggers => _loggers;
+
         // task
         private Task? _processingTask;
         private Task? _pollingTask;
@@ -196,9 +200,12 @@ namespace CarrotLink.Core.Session
                 {
                     while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
                     {
-                        //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
-                        var data = await SafeReadInternalAsync(cancellationToken);
-                        //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                        if (_device.IsConnected)
+                        {
+                            //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
+                            var data = await SafeReadInternalAsync(cancellationToken);
+                            //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
+                        }
                     }
                 }
                 catch (OperationCanceledException ex)
@@ -266,8 +273,8 @@ namespace CarrotLink.Core.Session
                 _pipe.Writer.Complete();
                 _pipe.Reader.Complete();
                 _cts.Cancel();
-                _pollingTask?.Wait();
-                _processingTask?.Wait();
+                //_pollingTask?.Wait();
+                //_processingTask?.Wait();
                 _pollingTimer?.Dispose();
                 _pollingTimer = null;
                 _cts.Dispose();

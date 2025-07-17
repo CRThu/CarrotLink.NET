@@ -72,7 +72,6 @@ namespace CarrotLink.Client
             //};
             //context.Device = new FtdiDevice(config);
 
-            context.Device.Connect();
             Console.WriteLine("Initialize done.");
 
             Console.WriteLine("Initialize service...");
@@ -90,6 +89,9 @@ namespace CarrotLink.Client
                 .WithLoggers(context.Loggers.Values)
                 .Build();
             Console.WriteLine("Initialize done...");
+            Thread.Sleep(1000);
+            Console.WriteLine("Opening...");
+            context.Session.Device.Connect();
 
             try
             {
@@ -123,9 +125,8 @@ namespace CarrotLink.Client
             }
             finally
             {
-                context.Device.Disconnect();
+                context.Session.Device.Disconnect();
                 context.Session.Dispose();
-                context.Device.Dispose();
                 foreach (var logger in context.Loggers.Values)
                     logger.Dispose();
             }
