@@ -41,7 +41,7 @@ namespace CarrotLink.Core.Storage
 
         public bool TryRead(out T? data)
         {
-            return _backend.TryRead(_cursor, out data);
+            return _backend.TryRead(_cursor++, out data);
         }
 
         public void Clear()

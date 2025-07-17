@@ -43,6 +43,8 @@ namespace CarrotLink.Core.Devices.Impl
 
         public abstract Task WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default);
 
-        public virtual void Dispose() => Disconnect();
+        public virtual void Dispose()
+        {
+        }
     }
 }

@@ -13,7 +13,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services
+namespace CarrotLink.Core.Session
 {
     /// <summary>
     /// 设备会话，支持手动/定时/事件三种触发模式的接受服务调度以及发送方法
@@ -268,6 +268,8 @@ namespace CarrotLink.Core.Services
                 _cts.Cancel();
                 _pollingTask?.Wait();
                 _processingTask?.Wait();
+                _pollingTimer?.Dispose();
+                _pollingTimer = null;
                 _cts.Dispose();
             }
             catch (Exception ex)

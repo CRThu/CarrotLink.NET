@@ -51,10 +51,9 @@ namespace CarrotLink.Core.Protocols.Models
     {
         public PacketType PacketType => PacketType.Command;
 
-        public override string ToString() => AddLineEnding(Command);
+        public override string ToString() => Command;
 
-
-        private static string AddLineEnding(string cmd)
+        public static string AddLineEnding(string cmd)
         {
             return cmd.EndsWith('\n') ? cmd : cmd + "\n";
         }

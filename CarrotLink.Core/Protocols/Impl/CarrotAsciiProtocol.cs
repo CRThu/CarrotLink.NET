@@ -37,7 +37,7 @@ namespace CarrotLink.Core.Protocols.Impl
         {
             return packet switch
             {
-                ICommandPacket cmd => Encoding.ASCII.GetBytes(cmd.Command),
+                ICommandPacket cmd => Encoding.ASCII.GetBytes(CommandPacket.AddLineEnding(cmd.Command)),
                 _ => throw new NotSupportedException($"Unsupported packet type: {packet.PacketType}")
             };
         }
@@ -60,7 +60,7 @@ namespace CarrotLink.Core.Protocols.Impl
                 return false;
 
             // 解码ascii协议
-            var cmd = Encoding.ASCII.GetString(commandSeq).TrimEnd('\r');
+            var cmd = CommandPacket.AddLineEnding(Encoding.ASCII.GetString(commandSeq).TrimEnd('\r'));
             packet = new CommandPacket(cmd);
             buffer = buffer.Slice(reader.Position);
             return true;

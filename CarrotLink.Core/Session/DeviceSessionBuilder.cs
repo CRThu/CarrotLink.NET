@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CarrotLink.Core.Services
+namespace CarrotLink.Core.Session
 {
     public class DeviceSessionBuilder
     {

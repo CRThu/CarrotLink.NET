@@ -1,5 +1,5 @@
 ﻿using CarrotLink.Core.Devices.Impl;
-using CarrotLink.Core.Services;
+using CarrotLink.Core.Session;
 using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols;
 using CarrotLink.Core.Protocols.Impl;
@@ -35,8 +35,8 @@ namespace CarrotLink.Client
         {
             Console.WriteLine("[CarrotLink.Client]");
             Console.WriteLine("StorageBackend test...");
-            StorageBackendTest.StorageBackendSyncTest();
-            StorageBackendTest.StorageBackendAsyncTest();
+            //StorageBackendTest.StorageBackendSyncTest();
+            //StorageBackendTest.StorageBackendAsyncTest();
 
             Console.Write("press to run device");
             Console.ReadKey();
@@ -53,15 +53,15 @@ namespace CarrotLink.Client
             Console.WriteLine("Initialize device...");
 
             // 示例：完整设备操作流程
-            //var config = new SerialConfiguration
-            //{
-            //    DeviceId = "Serial-COM17",
-            //    PortName = "COM17",
-            //    BaudRate = 115200,
-            //};
-            //context.Device = new SerialDevice(config);
+            var config = new SerialConfiguration
+            {
+                DeviceId = "Serial-COM17",
+                PortName = "COM17",
+                BaudRate = 115200,
+            };
+            context.Device = new SerialDevice(config);
 
-            context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
+            //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
             //var config = new FtdiConfiguration
             //{
@@ -80,7 +80,7 @@ namespace CarrotLink.Client
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //{"console",new ConsoleLogger() },
-                {"nlog", new NLogWrapper(true,"nlog.log") },
+                {"nlog", new NLogWrapper(false,"nlog.log") },
                 {"storage", new CommandStorage() }
             };
 
@@ -162,7 +162,7 @@ namespace CarrotLink.Client
         {
             // 发送大数据量测试
             Console.WriteLine("开始数据测试...");
-            int packetNum = 1000000;
+            int packetNum = 1000;
             for (int i = 0; i < packetNum; i++)
             {
                 context.Session.SendAscii($"{i:D18}");
@@ -187,7 +187,7 @@ namespace CarrotLink.Client
                 int maxErrorCount = 0;
                 for (int i = 0; i < packetNum; i++)
                 {
-                    string send = $"{i:D18}";
+                    string send = $"{i:D18}\n";
                     commandStorage.TryRead(out string? recv);
                     if (send != recv)
                     {
