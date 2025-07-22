@@ -32,7 +32,7 @@ namespace CarrotLink.Core.Protocols.Models
         public DataEncoding Encoding { get; }
         public DataEndian Endian { get; }
 
-        public int[] Channels { get; }
+        public string[] Keys { get; }
         public byte[] RawData { get; }
         public T[] GetValues<T>(int channel);
     }
@@ -67,15 +67,24 @@ namespace CarrotLink.Core.Protocols.Models
         public DataEncoding Encoding { get; init; }
         public DataEndian Endian { get; init; }
 
-        public int[] Channels { get; init; }
+        public string[] Keys { get; init; }
         public byte[] RawData { get; init; }
+
+        public DataPacket(IEnumerable<double> values)
+        {
+            DataType = DataType.FP64;
+            Encoding = DataEncoding.OffsetBinary;
+            Endian = DataEndian.LittleEndian;
+            Keys = new string[1] { "0" };
+            RawData = values.SelectMany(BitConverter.GetBytes).ToArray();
+        }
 
         public DataPacket(DataType type, DataEncoding encoding, DataEndian endian, int channel, IEnumerable<byte> rawData)
         {
             DataType = type;
             Encoding = encoding;
             Endian = endian;
-            Channels = new int[1] { channel };
+            Keys = new string[1] { channel.ToString() };
             RawData = rawData.ToArray();
         }
 
@@ -84,7 +93,7 @@ namespace CarrotLink.Core.Protocols.Models
             DataType = type;
             Encoding = encoding;
             Endian = endian;
-            Channels = channels.ToArray();
+            Keys = channels.Select(c => c.ToString()).ToArray();
             RawData = rawData.ToArray();
         }
 

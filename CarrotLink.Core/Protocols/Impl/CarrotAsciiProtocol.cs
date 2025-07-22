@@ -56,12 +56,30 @@ namespace CarrotLink.Core.Protocols.Impl
                 return _innerProtocol.TryDecode(ref buffer, out packet);
 
             // 检查ascii协议完整包
-            if (!reader.TryReadTo(out ReadOnlySequence<byte> commandSeq, (byte)'\n', true))
+            if (!reader.TryReadTo(out ReadOnlySequence<byte> seq, (byte)'\n', true))
                 return false;
 
-            // 解码ascii协议
-            var cmd = CommandPacket.AddLineEnding(Encoding.ASCII.GetString(commandSeq).TrimEnd('\r'));
-            packet = new CommandPacket(cmd);
+            var payload = Encoding.ASCII.GetString(seq).TrimEnd('\r');
+
+            if (startByte == '[')
+            {
+                // 数据包(示例: "[DATA]: 0xAA" )
+                int colonIndex = payload.IndexOf(':');
+                if (colonIndex > 0)
+                {
+                    string key = payload.Substring(1, colonIndex - 2);
+                    string value = payload.Substring(colonIndex + 1).Trim();
+                    if (key == "DATA")
+                    {
+                        packet = new DataPacket(new double[] { Convert.ToDouble(value) });
+                        buffer = buffer.Slice(reader.Position);
+                        return true;
+                    }
+                }
+            }
+            // 解码ascii命令
+            packet = new CommandPacket(CommandPacket.AddLineEnding(payload));
+
             buffer = buffer.Slice(reader.Position);
             return true;
         }
