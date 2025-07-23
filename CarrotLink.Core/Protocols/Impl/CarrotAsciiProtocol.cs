@@ -68,12 +68,15 @@ namespace CarrotLink.Core.Protocols.Impl
                 if (colonIndex > 0)
                 {
                     string key = payload.Substring(1, colonIndex - 2);
-                    string value = payload.Substring(colonIndex + 1).Trim();
+                    string stringValue = payload.Substring(colonIndex + 1).Trim();
                     if (key == "DATA")
                     {
-                        packet = new DataPacket(new double[] { Convert.ToDouble(value) });
-                        buffer = buffer.Slice(reader.Position);
-                        return true;
+                        if (StringEx.TryToDouble(stringValue, out var doubleValue))
+                        {
+                            packet = new DataPacket(new double[] { doubleValue });
+                            buffer = buffer.Slice(reader.Position);
+                            return true;
+                        }
                     }
                 }
             }
