@@ -78,7 +78,7 @@ namespace CarrotLink.Core.Protocols.Models
             if (RawData == null)
                 throw new ArgumentNullException(nameof(RawData));
 
-            if ((Endian == DataEndian.BigEndian) != BitConverter.IsLittleEndian)
+            if ((Endian == DataEndian.BigEndian) == BitConverter.IsLittleEndian)
                 throw new NotImplementedException($"不支持的大小端: {Endian}");
 
             int channelIndex = Array.IndexOf(Keys, channel.ToString());
