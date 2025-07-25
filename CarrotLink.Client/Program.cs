@@ -34,6 +34,10 @@ namespace CarrotLink.Client
         static void Main(string[] args)
         {
             Console.WriteLine("[CarrotLink.Client]");
+
+            NiVisaDemo.Test();
+            return;
+
             Console.WriteLine("StorageBackend test...");
             //StorageBackendTest.StorageBackendSyncTest();
             //StorageBackendTest.StorageBackendAsyncTest();
@@ -52,14 +56,13 @@ namespace CarrotLink.Client
             CancellationTokenSource cts = new CancellationTokenSource();
             Console.WriteLine("Initialize device...");
 
-            // 示例：完整设备操作流程
-            var config = new SerialConfiguration
-            {
-                DeviceId = "Serial-COM17",
-                PortName = "COM17",
-                BaudRate = 115200,
-            };
-            context.Device = new SerialDevice(config);
+            //var config = new SerialConfiguration
+            //{
+            //    DeviceId = "Serial-COM17",
+            //    PortName = "COM17",
+            //    BaudRate = 115200,
+            //};
+            //context.Device = new SerialDevice(config);
 
             //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
