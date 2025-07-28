@@ -56,7 +56,7 @@ namespace CarrotLink.Core.Devices.Impl
         {
             if (_visaSession != null)
             {
-                // Error?
+                // 必须设置NI-MAX/Tools/NI-VISA/Options,Disable R&S和Keysight驱动后设置Preferred NIVISA才能正常使用
                 //_visaSession.Dispose();
                 _visaSession = null;
             }
