@@ -15,9 +15,8 @@ namespace CarrotLink.Core.Session
         private IDevice _device;
         private IProtocol _protocol;
         private List<IPacketLogger> _loggers = new List<IPacketLogger>();
-        private bool hasProcTask = true;
-        private bool hasPollTask = true;
-        private int pollInterval = 15;
+        private bool _isAutoPollingEnabled = true;
+        private int _pollingInterval = 15;
 
         public DeviceSessionBuilder WithDevice(IDevice device)
         {
@@ -43,16 +42,10 @@ namespace CarrotLink.Core.Session
             return this;
         }
 
-        public DeviceSessionBuilder WithPollTask(bool autoPoll = true, int interval = 15)
+        public DeviceSessionBuilder WithPolling(bool autoPolling = true, int interval = 15)
         {
-            hasPollTask = autoPoll;
-            pollInterval = interval;
-            return this;
-        }
-
-        public DeviceSessionBuilder WithProcessTask(bool autoProc = true)
-        {
-            hasProcTask = autoProc;
+            _isAutoPollingEnabled = autoPolling;
+            _pollingInterval = interval;
             return this;
         }
 
@@ -62,7 +55,7 @@ namespace CarrotLink.Core.Session
                 throw new InvalidOperationException("Device is not configured");
             if (_protocol == null)
                 throw new InvalidOperationException("Protocol is not configured");
-            return new DeviceSession(_device, _protocol, _loggers, hasProcTask, hasPollTask, pollInterval);
+            return new DeviceSession(_device, _protocol, _loggers, _isAutoPollingEnabled, _pollingInterval);
         }
     }
 }

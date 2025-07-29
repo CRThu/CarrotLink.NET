@@ -30,14 +30,19 @@ namespace CarrotLink.Core.Session
         public List<IPacketLogger> Loggers => _loggers;
 
         // task
-        private Task? _processingTask;
+        private bool _isAutoPollingEnabled;
         private Task? _pollingTask;
+        private Task? _processingTask;
         private CancellationTokenSource _cts = new CancellationTokenSource();
-        //private int _isRunning;
+        public bool IsAutoPollingTaskRunning => _isAutoPollingEnabled
+                                                && _pollingTask != null
+                                                && _processingTask != null
+                                                && !_pollingTask.IsCompleted
+                                                && !_processingTask.IsCompleted;
 
         // for logger event
         public delegate void PacketHandler(IPacket packet);
-        public event PacketHandler OnPacketReceived;
+        public event PacketHandler? OnPacketReceived;
 
         // for processing
         private static ArrayPool<byte> _dataProcPool = ArrayPool<byte>.Create(128 * 1024 * 1024, 5);
@@ -57,7 +62,7 @@ namespace CarrotLink.Core.Session
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers, bool hasProcTask, bool hasPollTask, int pollingInterval = 15)
+        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers, bool autoPolling = true, int pollingInterval = 15)
         {
             _device = device;
             _protocol = protocol;
@@ -65,10 +70,13 @@ namespace CarrotLink.Core.Session
 
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
 
-            if (hasProcTask)
-                _processingTask = StartProcessingAsync();
-            if (hasPollTask)
-                _pollingTask = StartAutoPollingAsync(pollingInterval);
+            _isAutoPollingEnabled = autoPolling;
+
+            if (_isAutoPollingEnabled)
+            {
+                _processingTask = AutoProcessingAsync();
+                _pollingTask = AutoPollingAsync(pollingInterval);
+            }
         }
 
         public static DeviceSessionBuilder Create() => new DeviceSessionBuilder();
@@ -140,7 +148,7 @@ namespace CarrotLink.Core.Session
             catch (OperationCanceledException ex)
             {
                 //writer.Complete(ex);
-                Console.WriteLine("DeviceService.DecodeAsync() cancelled");
+                Console.WriteLine("DeviceSession.ProcessAsync() cancelled");
                 return null;
             }
         }
@@ -175,7 +183,7 @@ namespace CarrotLink.Core.Session
             catch (OperationCanceledException ex)
             {
                 //writer.Complete(ex);
-                Console.WriteLine("DeviceService.ReadImplAsync() cancelled");
+                Console.WriteLine("DeviceSession.ReadInternalAsync() cancelled");
                 return 0;
             }
             finally
@@ -186,7 +194,7 @@ namespace CarrotLink.Core.Session
         }
 
         // 定时轮询模式
-        private async Task StartAutoPollingAsync(int intervalMs)
+        private async Task AutoPollingAsync(int intervalMs)
         {
             if (_pollingTimer != null)
                 throw new InvalidOperationException("Polling is already active");
@@ -207,7 +215,7 @@ namespace CarrotLink.Core.Session
             }
             catch (OperationCanceledException ex)
             {
-                Console.WriteLine("DeviceService.StartAutoPolling() cancelled");
+                Console.WriteLine("DeviceSession.StartAutoPollingAsync() cancelled");
             }
             finally
             {
@@ -217,7 +225,7 @@ namespace CarrotLink.Core.Session
         }
 
         // 字节流处理解析
-        private async Task StartProcessingAsync()
+        private async Task AutoProcessingAsync()
         {
             try
             {
@@ -229,7 +237,7 @@ namespace CarrotLink.Core.Session
             catch (OperationCanceledException ex)
             {
                 //reader.Complete(ex);
-                Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
+                Console.WriteLine("DeviceSession.StartProcessingAsync() cancelled");
             }
         }
 

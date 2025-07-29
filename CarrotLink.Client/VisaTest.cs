@@ -32,8 +32,7 @@ namespace CarrotLink.Client
                 .WithDevice(dev)
                 .WithProtocol(new CarrotAsciiProtocol(null))
                 .WithLogger(logger)
-                .WithPollTask(false)
-                .WithProcessTask(false)
+                .WithPolling(false)
                 .Build();
 
             session.SendAscii("*IDN?");

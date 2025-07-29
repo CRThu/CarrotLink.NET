@@ -56,13 +56,13 @@ namespace CarrotLink.Client
             CancellationTokenSource cts = new CancellationTokenSource();
             Console.WriteLine("Initialize device...");
 
-            //var config = new SerialConfiguration
-            //{
-            //    DeviceId = "Serial-COM17",
-            //    PortName = "COM17",
-            //    BaudRate = 115200,
-            //};
-            //context.Device = new SerialDevice(config);
+            var config = new SerialConfiguration
+            {
+                DeviceId = "Serial-COM100",
+                PortName = "COM100",
+                BaudRate = 115200,
+            };
+            context.Device = new SerialDevice(config);
 
             //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
