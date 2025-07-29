@@ -66,9 +66,9 @@ namespace CarrotLink.Core.Session
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
 
             if (hasProcTask)
-                _processingTask = StartProcessingAsync(_cts.Token);
+                _processingTask = StartProcessingAsync();
             if (hasPollTask)
-                _pollingTask = StartAutoPollingAsync(pollingInterval, _cts.Token);
+                _pollingTask = StartAutoPollingAsync(pollingInterval);
         }
 
         public static DeviceSessionBuilder Create() => new DeviceSessionBuilder();
@@ -80,16 +80,16 @@ namespace CarrotLink.Core.Session
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public async Task WriteAsync(IPacket packet, CancellationToken cancellationToken = default)
+        public async Task WriteAsync(IPacket packet)
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (_cts.IsCancellationRequested)
                 return;
             if (Interlocked.CompareExchange(ref _isWriting, 1, 0) != 0)
                 throw new InvalidOperationException("Write Operation is running");
             try
             {
                 var pktBytes = _protocol.Encode(packet);
-                await _device.WriteAsync(pktBytes, cancellationToken);
+                await _device.WriteAsync(pktBytes, _cts.Token).ConfigureAwait(false);
                 Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
             }
             finally
@@ -99,38 +99,68 @@ namespace CarrotLink.Core.Session
         }
 
         // 手动触发模式
-        public async Task<int> ManualReadAsync(CancellationToken cancellationToken = default)
+        public async Task<IPacket?> ReadAsync()
         {
-            return await SafeReadInternalAsync(cancellationToken);
+            int bytesNum = await ReadInternalAsync().ConfigureAwait(false);
+            if (bytesNum > 0)
+                return await ProcessAsync().ConfigureAwait(false);
+            else
+                return null;
         }
 
-        private async Task<int> SafeReadInternalAsync(CancellationToken cancellationToken = default)
+        private async Task<IPacket?> ProcessAsync()
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (_cts.IsCancellationRequested)
+                return null;
+            try
+            {
+                PipeReader? reader = _pipe.Reader;
+
+                // read when data received
+                ReadResult readResult = await reader.ReadAsync(_cts.Token).ConfigureAwait(false);
+
+                var buffer = readResult.Buffer;
+                // parse until buffer has no complete packets
+                bool parsed = _protocol.TryDecode(ref buffer, out IPacket? packet);
+                if (!parsed || packet == null)
+                {
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+                    return null;
+                }
+
+                // save to storage
+                OnPacketReceived?.Invoke(packet);
+
+                // set examined position
+                //reader.AdvanceTo(buffer.Start, buffer.End);
+                reader.AdvanceTo(buffer.Start, buffer.Start);
+
+                return packet;
+            }
+            catch (OperationCanceledException ex)
+            {
+                //writer.Complete(ex);
+                Console.WriteLine("DeviceService.DecodeAsync() cancelled");
+                return null;
+            }
+        }
+
+        private async Task<int> ReadInternalAsync()
+        {
+            if (_cts.IsCancellationRequested)
                 return 0;
             if (Interlocked.CompareExchange(ref _isReading, 1, 0) != 0)
                 throw new InvalidOperationException("Read Operation is running");
-            try
-            {
-                return await ReadInternalAsync(cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                Volatile.Write(ref _isReading, 0);
-            }
-        }
 
-        private async Task<int> ReadInternalAsync(CancellationToken cancellationToken = default)
-        {
             PipeWriter? writer = _pipe.Writer;
             byte[] buffer = _dataProcPool.Rent(_device.Config.BufferSize);
             try
             {
-                int bytesRead = await _device.ReadAsync(buffer, cancellationToken);
+                int bytesRead = await _device.ReadAsync(buffer, _cts.Token).ConfigureAwait(false);
                 var bufmem = buffer.AsMemory(0, bytesRead);
                 if (bytesRead > 0)
                 {
-                    var result = await writer.WriteAsync(bufmem, cancellationToken);
+                    var result = await writer.WriteAsync(bufmem, _cts.Token).ConfigureAwait(false);
 
                     Interlocked.Add(ref _totalReadBytes, bytesRead);
                     Console.WriteLine($"Received {bufmem.Length} bytes, Total: {TotalReadBytes} bytes");
@@ -151,33 +181,49 @@ namespace CarrotLink.Core.Session
             finally
             {
                 _dataProcPool.Return(buffer);
+                Volatile.Write(ref _isReading, 0);
             }
         }
 
-        private async Task StartProcessingAsync(CancellationToken cancellationToken = default)
+        // 定时轮询模式
+        private async Task StartAutoPollingAsync(int intervalMs)
         {
-            PipeReader? reader = _pipe.Reader;
+            if (_pollingTimer != null)
+                throw new InvalidOperationException("Polling is already active");
+
+            _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
+
             try
             {
-                while (!cancellationToken.IsCancellationRequested)
+                while (await _pollingTimer.WaitForNextTickAsync(_cts.Token).ConfigureAwait(false))
                 {
-                    // read when data received
-                    ReadResult readResult = await reader.ReadAsync(cancellationToken);
-
-                    var buffer = readResult.Buffer;
-                    while (!cancellationToken.IsCancellationRequested)
+                    if (_device.IsConnected)
                     {
-                        // parse until buffer has no complete packets
-                        bool parsed = _protocol.TryDecode(ref buffer, out IPacket? packet);
-                        if (!parsed || packet == null)
-                            break;
-
-                        // save to storage
-                        OnPacketReceived?.Invoke(packet);
+                        //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
+                        var bytesNum = await ReadInternalAsync().ConfigureAwait(false);
+                        //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
                     }
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                Console.WriteLine("DeviceService.StartAutoPolling() cancelled");
+            }
+            finally
+            {
+                _pollingTimer.Dispose();
+                _pollingTimer = null;
+            }
+        }
 
-                    // set examined position
-                    reader.AdvanceTo(buffer.Start, buffer.End);
+        // 字节流处理解析
+        private async Task StartProcessingAsync()
+        {
+            try
+            {
+                while (!_cts.IsCancellationRequested)
+                {
+                    await ProcessAsync().ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException ex)
@@ -186,40 +232,6 @@ namespace CarrotLink.Core.Session
                 Console.WriteLine("DeviceService.StartProcessingAsync() cancelled");
             }
         }
-
-        // 定时轮询模式
-        private Task StartAutoPollingAsync(int intervalMs, CancellationToken cancellationToken = default)
-        {
-            if (_pollingTimer != null)
-                throw new InvalidOperationException("Polling is already active");
-
-            _pollingTimer = new PeriodicTimer(TimeSpan.FromMilliseconds(intervalMs));
-            return Task.Run(async () =>
-            {
-                try
-                {
-                    while (await _pollingTimer.WaitForNextTickAsync(cancellationToken))
-                    {
-                        if (_device.IsConnected)
-                        {
-                            //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
-                            var data = await SafeReadInternalAsync(cancellationToken);
-                            //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
-                        }
-                    }
-                }
-                catch (OperationCanceledException ex)
-                {
-                    Console.WriteLine("DeviceService.StartAutoPolling() cancelled");
-                }
-                finally
-                {
-                    _pollingTimer.Dispose();
-                    _pollingTimer = null;
-                }
-            }, cancellationToken);
-        }
-
 
         // 事件触发模式（需设备支持硬件中断）
         //private bool _isProcessing = false;

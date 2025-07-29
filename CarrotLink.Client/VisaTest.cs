@@ -2,6 +2,7 @@
 using CarrotLink.Core.Devices.Impl;
 using CarrotLink.Core.Protocols.Configuration;
 using CarrotLink.Core.Protocols.Impl;
+using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Session;
 using CarrotLink.Core.Storage;
 using System;
@@ -19,7 +20,8 @@ namespace CarrotLink.Client
             var visaConfig = new NiVisaConfiguration
             {
                 DeviceId = "NI-VISA-Device",
-                ResourceString = "USB0::0x0699::0x0413::C012473::INSTR",
+                //ResourceString = "USB0::0x0699::0x0413::C012473::INSTR",
+                ResourceString = "ASRL100::INSTR",
                 Timeout = 5000, // 5秒超时
             };
             var dev = new NiVisaDevice(visaConfig);
@@ -35,8 +37,13 @@ namespace CarrotLink.Client
                 .Build();
 
             session.SendAscii("*IDN?");
-            session.ManualReadAsync();
+            IPacket? pkt = session.ReadAsync().GetAwaiter().GetResult();
+            if (pkt == null)
+                Console.WriteLine("Read packet return: null");
+            else
+                Console.WriteLine($"Read packet return: {pkt}");
 
+            Console.WriteLine($"Logger:");
             Thread.Sleep(1000);
             if (logger.TryRead(out string? data))
                 Console.WriteLine(data);
