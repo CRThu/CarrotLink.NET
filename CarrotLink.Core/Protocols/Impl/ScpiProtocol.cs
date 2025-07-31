@@ -1,5 +1,7 @@
-﻿using CarrotLink.Core.Protocols.Configuration;
+﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Protocols.Configuration;
 using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Utility;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -9,23 +11,25 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public class ScpiProtocol : ProtocolBase
+    public class ScpiProtocol : IProtocol
     {
-        public override string ProtocolName => nameof(ScpiProtocol);
+        public string ProtocolName => nameof(ScpiProtocol);
 
-        public override int ProtocolVersion => 1;
+        public int ProtocolVersion => 1;
 
-        public ScpiProtocolConfiguration? config;
+        public ProtocolConfigBase Config => _config;
 
-        public ScpiProtocol(ScpiProtocolConfiguration? _config)
+        private ScpiProtocolConfiguration _config;
+
+        public ScpiProtocol(ScpiProtocolConfiguration? config)
         {
-            config = _config;
-            if (config != null)
+            _config = config;
+            if (_config != null)
             {
             }
         }
 
-        public override byte[] Encode(IPacket packet)
+        public byte[] Encode(IPacket packet)
         {
             return packet switch
             {
@@ -34,7 +38,7 @@ namespace CarrotLink.Core.Protocols.Impl
             };
         }
 
-        public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
+        public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = default;
             var reader = new SequenceReader<byte>(buffer);
@@ -44,7 +48,14 @@ namespace CarrotLink.Core.Protocols.Impl
 
             var payload = Encoding.ASCII.GetString(seq).TrimEnd('\r');
 
-            packet = new CommandPacket(CommandPacket.AddLineEnding(payload));
+            if (StringEx.TryToDouble(payload, out var doubleValue))
+            {
+                packet = new DataPacket(new double[] { doubleValue });
+            }
+            else
+            {
+                packet = new CommandPacket(CommandPacket.AddLineEnding(payload));
+            }
 
             buffer = buffer.Slice(reader.Position);
             return true;

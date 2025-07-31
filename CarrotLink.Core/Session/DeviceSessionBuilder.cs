@@ -1,6 +1,6 @@
 ﻿using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Logging;
-using CarrotLink.Core.Protocols.Models;
+using CarrotLink.Core.Protocols.Impl;
 using System;
 using System.Buffers;
 using System.Collections.Generic;

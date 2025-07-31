@@ -30,7 +30,7 @@ namespace CarrotLink.Client
 
             var session = DeviceSession.Create()
                 .WithDevice(dev)
-                .WithProtocol(new CarrotAsciiProtocol(null))
+                .WithProtocol(new ScpiProtocol(null))
                 .WithLogger(logger)
                 .WithPolling(false)
                 .Build();

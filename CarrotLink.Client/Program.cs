@@ -4,7 +4,6 @@ using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols;
 using CarrotLink.Core.Protocols.Impl;
 using CarrotLink.Core.Utility;
-using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Discovery;
 using CarrotLink.Core.Devices.Interfaces;
 using System.IO.Ports;

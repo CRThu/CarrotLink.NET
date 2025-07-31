@@ -1,6 +1,7 @@
 ﻿using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Logging;
+using CarrotLink.Core.Protocols.Impl;
 using CarrotLink.Core.Protocols.Models;
 using NationalInstruments.VisaNS;
 using System;

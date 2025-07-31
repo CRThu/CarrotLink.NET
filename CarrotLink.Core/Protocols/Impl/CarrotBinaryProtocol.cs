@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Protocols.Configuration;
+﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Protocols.Configuration;
 using CarrotLink.Core.Protocols.Models;
 using System;
 using System.Buffers;
@@ -12,34 +13,8 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public class CarrotBinaryProtocol : ProtocolBase
+    public class CarrotBinaryProtocol : IProtocol
     {
-        public CarrotBinaryProtocol(CarrotBinaryProtocolConfiguration? config)
-        {
-            if (config == null)
-            {
-                CommandPacketId = Command256PacketId;
-                DataPacketId = Data256PacketId;
-            }
-            else
-            {
-                CommandPacketId = config!.CommandPacketLength switch
-                {
-                    64 => Command64PacketId,
-                    256 => Command256PacketId,
-                    2048 => Command2048PacketId,
-                    _ => throw new NotImplementedException()
-                };
-                DataPacketId = config!.DataPacketLength switch
-                {
-                    64 => Data64PacketId,
-                    256 => Data256PacketId,
-                    2048 => Data2048PacketId,
-                    _ => throw new NotImplementedException()
-                };
-            }
-        }
-
         public const byte StartByte = 0x3C;
         public const byte EndByte = 0x3E;
 
@@ -56,9 +31,41 @@ namespace CarrotLink.Core.Protocols.Impl
         public byte DataPacketId { get; init; }
 
 
-        public override string ProtocolName => nameof(CarrotBinaryProtocol);
+        public string ProtocolName => nameof(CarrotBinaryProtocol);
 
-        public override int ProtocolVersion => 0;
+        public int ProtocolVersion => 0;
+
+        public ProtocolConfigBase Config => _config;
+
+        private CarrotBinaryProtocolConfiguration _config;
+
+
+        public CarrotBinaryProtocol(CarrotBinaryProtocolConfiguration? config = null)
+        {
+            _config = config;
+            if (config == null)
+            {
+                CommandPacketId = Command256PacketId;
+                DataPacketId = Data256PacketId;
+            }
+            else
+            {
+                CommandPacketId = _config.CommandPacketLength switch
+                {
+                    64 => Command64PacketId,
+                    256 => Command256PacketId,
+                    2048 => Command2048PacketId,
+                    _ => throw new NotImplementedException()
+                };
+                DataPacketId = _config.DataPacketLength switch
+                {
+                    64 => Data64PacketId,
+                    256 => Data256PacketId,
+                    2048 => Data2048PacketId,
+                    _ => throw new NotImplementedException()
+                };
+            }
+        }
 
         private static int GetFrameLength(byte protocolId)
         {
@@ -76,7 +83,7 @@ namespace CarrotLink.Core.Protocols.Impl
             };
         }
 
-        public override byte[] Encode(IPacket packet)
+        public byte[] Encode(IPacket packet)
         {
             byte protocolId = packet switch
             {
@@ -97,7 +104,7 @@ namespace CarrotLink.Core.Protocols.Impl
             return CreateFrame(protocolId, payload);
         }
 
-        public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
+        public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = null;
 

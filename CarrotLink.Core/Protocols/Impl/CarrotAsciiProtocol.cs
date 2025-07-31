@@ -1,4 +1,5 @@
-﻿using CarrotLink.Core.Protocols.Configuration;
+﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Protocols.Configuration;
 using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Utility;
 using System;
@@ -12,28 +13,31 @@ using System.Xml;
 
 namespace CarrotLink.Core.Protocols.Impl
 {
-    public class CarrotAsciiProtocol : ProtocolBase
+    public class CarrotAsciiProtocol : IProtocol
     {
-        public override string ProtocolName => nameof(CarrotAsciiProtocol);
-        public override int ProtocolVersion => 2;
-        public CarrotAsciiProtocolConfiguration? config;
+        public string ProtocolName => nameof(CarrotAsciiProtocol);
+        public int ProtocolVersion => 2;
 
         private readonly CarrotBinaryProtocol _innerProtocol;
 
-        public CarrotAsciiProtocol(CarrotAsciiProtocolConfiguration? _config)
+        public ProtocolConfigBase Config => _config;
+
+        private CarrotAsciiProtocolConfiguration _config;
+
+        public CarrotAsciiProtocol(CarrotAsciiProtocolConfiguration? config)
         {
-            config = _config;
-            if (config != null)
+            _config = config;
+            if (_config != null)
             {
                 _innerProtocol = new CarrotBinaryProtocol(new CarrotBinaryProtocolConfiguration()
                 {
                     CommandPacketLength = 256,
-                    DataPacketLength = config.DataPacketLength
+                    DataPacketLength = _config.DataPacketLength
                 });
             }
         }
 
-        public override byte[] Encode(IPacket packet)
+        public byte[] Encode(IPacket packet)
         {
             return packet switch
             {
@@ -42,7 +46,7 @@ namespace CarrotLink.Core.Protocols.Impl
             };
         }
 
-        public override bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
+        public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
         {
             packet = default;
             var reader = new SequenceReader<byte>(buffer);

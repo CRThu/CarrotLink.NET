@@ -1,7 +1,6 @@
 ﻿using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols.Configuration;
 using CarrotLink.Core.Protocols.Impl;
-using CarrotLink.Core.Protocols.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
