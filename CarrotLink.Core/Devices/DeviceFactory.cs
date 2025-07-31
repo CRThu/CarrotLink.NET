@@ -30,7 +30,7 @@ namespace CarrotLink.Core.Devices
                 InterfaceType.Loopback when config is LoopbackConfiguration loopbackConfig =>
                     new LoopbackDevice(loopbackConfig),
                 InterfaceType.NiVisa when config is NiVisaConfiguration niVisaConfig =>
-                new NiVisaDevice(niVisaConfig),
+                    new NiVisaDevice(niVisaConfig),
                 _ => throw new ArgumentException($"Invalid device type and configuration combination: {type} with {config.GetType().Name}")
             };
         }

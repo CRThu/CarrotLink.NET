@@ -28,12 +28,8 @@ namespace CarrotLink.Core.Devices.Impl
                 // 使用资源管理器打开VISA会话
                 _visaSession = (MessageBasedSession)ResourceManager.GetLocalManager().Open(_config.ResourceString);
 
-                // 根据配置设置I/O操作的超时时间
-                if (_config.Timeout > 0)
-                {
-                    // VISA的超时单位是毫秒
-                    _visaSession.Timeout = _config.Timeout;
-                }
+                // 根据配置设置I/O操作的超时时间以及接口配置
+                _config.ApplySettings(_visaSession);
 
                 _totalReadBytes = 0;
                 _totalWriteBytes = 0;
@@ -42,7 +38,8 @@ namespace CarrotLink.Core.Devices.Impl
             catch (Exception ex)
             {
                 // 如果连接失败，确保资源被释放
-                _visaSession?.Dispose();
+                // 必须设置NI-MAX/Tools/NI-VISA/Options,Disable R&S和Keysight驱动后设置Preferred NIVISA才能正常使用
+                //_visaSession?.Dispose();
                 _visaSession = null;
                 IsConnected = false;
                 throw new InvalidOperationException($"Failed to connect to NI-VISA resource '{_config.ResourceString}'. Please check if the resource string is correct and the device is available.", ex);

@@ -28,11 +28,15 @@ namespace CarrotLink.Core.Discovery.Searchers
                 string expression = "?*";
                 //string expression = "GPIB?*INSTR";
                 string[] res = ResourceManager.GetLocalManager().FindResources(expression);
-                return res.Select(resourceName => new DeviceInfo() {
+                return res.Select(resourceName => new DeviceInfo()
+                {
                     Driver = DriverType.NiVisa/*"VISA"*/,
                     Interface = InterfaceType.NiVisa,   // TODO: SERIAL/USB/GPIB
                     Name = resourceName,
-                    Description = "NI-VISA"
+                    Description = "NI-VISA",
+
+                    SupportProtocols = new Protocols.ProtocolType[] { Protocols.ProtocolType.CarrotAscii },
+                    SupportAutoPolling = false
                 });
             }
             catch (Exception ex)
