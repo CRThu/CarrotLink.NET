@@ -13,8 +13,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarrotLink.Server", "Carrot
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CarrotLink.Logging.NLogLogger", "CarrotLink.Logging.NLogLogger\CarrotLink.Logging.NLogLogger.csproj", "{45BEA7F5-5A88-C2A8-5FDD-7F0AB852BFDF}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "CarrotLink.Shared", "CarrotLink.Shared\CarrotLink.Shared.shproj", "{D3BBAE54-32BB-41DE-9471-3B7714D33507}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,8 +45,5 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {65021CDB-6E96-4E9B-B319-D7931FDC1BFB}
-	EndGlobalSection
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		CarrotLink.Shared\CarrotLink.Shared.projitems*{d3bbae54-32bb-41de-9471-3b7714d33507}*SharedItemsImports = 13
 	EndGlobalSection
 EndGlobal

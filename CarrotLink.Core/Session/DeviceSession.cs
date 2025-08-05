@@ -110,11 +110,45 @@ namespace CarrotLink.Core.Session
         // 手动触发模式
         public async Task<IPacket?> ReadAsync()
         {
-            int bytesNum = await ReadInternalAsync().ConfigureAwait(false);
-            if (bytesNum > 0)
-                return await ProcessAsync().ConfigureAwait(false);
-            else
+            if (_cts.IsCancellationRequested)
                 return null;
+
+            var operationTimeout = _device.Config.Timeout;
+            using var operationCts = new CancellationTokenSource(operationTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, operationCts.Token);
+            var cancellationToken = linkedCts.Token;
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                // check exist bytes
+                if (_pipe.Reader.TryRead(out var result))
+                {
+                    var buffer = result.Buffer;
+
+                    bool parsed = _protocol.TryDecode(ref buffer, out var packet);
+                    if (parsed && packet != null)
+                    {
+                        // 取得完整数据包
+                        OnPacketReceived?.Invoke(packet);
+                        _pipe.Reader.AdvanceTo(buffer.Start);
+                        return packet;
+                    }
+                    // 未取得完整数据包，更新检查位置
+                    _pipe.Reader.AdvanceTo(buffer.Start, buffer.End);
+                }
+
+                // 异步读取更多数据
+                try
+                {
+                    await ReadInternalAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+
+            return null;
         }
 
         private async Task<IPacket?> ProcessAsync()
@@ -142,7 +176,7 @@ namespace CarrotLink.Core.Session
 
                 // set examined position
                 //reader.AdvanceTo(buffer.Start, buffer.End);
-                reader.AdvanceTo(buffer.Start, buffer.Start);
+                reader.AdvanceTo(buffer.Start);
 
                 return packet;
             }
@@ -154,9 +188,9 @@ namespace CarrotLink.Core.Session
             }
         }
 
-        private async Task<int> ReadInternalAsync()
+        private async Task<int> ReadInternalAsync(CancellationToken cancellationToken)
         {
-            if (_cts.IsCancellationRequested)
+            if (cancellationToken.IsCancellationRequested)
                 return 0;
             if (Interlocked.CompareExchange(ref _isReading, 1, 0) != 0)
                 throw new InvalidOperationException("Read Operation is running");
@@ -165,11 +199,11 @@ namespace CarrotLink.Core.Session
             byte[] buffer = _dataProcPool.Rent(_device.Config.BufferSize);
             try
             {
-                int bytesRead = await _device.ReadAsync(buffer, _cts.Token).ConfigureAwait(false);
+                int bytesRead = await _device.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                 var bufmem = buffer.AsMemory(0, bytesRead);
                 if (bytesRead > 0)
                 {
-                    var result = await writer.WriteAsync(bufmem, _cts.Token).ConfigureAwait(false);
+                    var result = await writer.WriteAsync(bufmem, cancellationToken).ConfigureAwait(false);
 
                     Interlocked.Add(ref _totalReadBytes, bytesRead);
                     Console.WriteLine($"Received {bufmem.Length} bytes, Total: {TotalReadBytes} bytes");
@@ -209,7 +243,7 @@ namespace CarrotLink.Core.Session
                     if (_device.IsConnected)
                     {
                         //Debug.WriteLine($"[PeriodicTimer]: {DateTime.Now} TIME TO READ");
-                        var bytesNum = await ReadInternalAsync().ConfigureAwait(false);
+                        var bytesNum = await ReadInternalAsync(_cts.Token).ConfigureAwait(false);
                         //Debug.WriteLine($"[PeriodicTimer]: READ DONE");
                     }
                 }
