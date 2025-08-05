@@ -7,9 +7,9 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Title>$(AssemblyName)</Title>
-    <Version>1.0.62</Version>
-    <AssemblyVersion>1.0.62</AssemblyVersion>
-    <FileVersion>1.0.62</FileVersion>
+    <Version>1.0.63</Version>
+    <AssemblyVersion>1.0.63</AssemblyVersion>
+    <FileVersion>1.0.63</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

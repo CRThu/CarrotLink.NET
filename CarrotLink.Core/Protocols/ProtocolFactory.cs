@@ -12,7 +12,8 @@ namespace CarrotLink.Core.Protocols
     public enum ProtocolType
     {
         CarrotAscii,
-        CarrotBinary
+        CarrotBinary,
+        Scpi
     }
 
     public static class ProtocolFactory
@@ -23,6 +24,7 @@ namespace CarrotLink.Core.Protocols
             {
                 ProtocolType.CarrotAscii => new CarrotAsciiProtocol(config as CarrotAsciiProtocolConfiguration),
                 ProtocolType.CarrotBinary => new CarrotBinaryProtocol(config as CarrotBinaryProtocolConfiguration),
+                ProtocolType.Scpi => new ScpiProtocol(config as ScpiProtocolConfiguration),
                 _ => throw new NotSupportedException($"Unsupported protocol type: {type}")
             };
         }
