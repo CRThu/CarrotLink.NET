@@ -182,8 +182,14 @@ namespace CarrotLink.Core.Session
             }
             catch (OperationCanceledException ex)
             {
-                //writer.Complete(ex);
                 Console.WriteLine("DeviceSession.ProcessAsync() cancelled");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _cts.Cancel();
+                //_pipe.Reader.Complete(ex);
+                Console.WriteLine(ex.ToString());
                 return null;
             }
         }
@@ -254,7 +260,7 @@ namespace CarrotLink.Core.Session
             }
             finally
             {
-                _pollingTimer.Dispose();
+                _pollingTimer?.Dispose();
                 _pollingTimer = null;
             }
         }
@@ -271,8 +277,13 @@ namespace CarrotLink.Core.Session
             }
             catch (OperationCanceledException ex)
             {
-                //reader.Complete(ex);
                 Console.WriteLine("DeviceSession.StartProcessingAsync() cancelled");
+            }
+            catch (Exception ex)
+            {
+                _cts.Cancel();
+                // _pipe.Reader.Complete(ex);
+                Console.WriteLine(ex.ToString());
             }
         }
 

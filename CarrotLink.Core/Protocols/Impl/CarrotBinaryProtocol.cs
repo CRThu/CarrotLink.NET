@@ -220,38 +220,36 @@ namespace CarrotLink.Core.Protocols.Impl
             }
         }
 
-        [StructLayout(LayoutKind.Explicit)]
+        [StructLayout(LayoutKind.Explicit, Pack = 1)]
         public struct DataPacketConfig
         {
-            [FieldOffset(0)] private byte StreamIdByte;
-            [FieldOffset(0)] private byte FlagsLowByte;
-            [FieldOffset(0)] private byte FlagsHighByte;
+            [FieldOffset(0)] private ushort ControlFlags;
+            [FieldOffset(2)] private byte StreamIdByte;
 
             public DataPacketConfig(byte[] flags)
             {
                 if (flags == null || flags.Length != 3)
                     throw new ArgumentException("flags is not 3 bytes data");
-                StreamIdByte = flags[0];
-                FlagsLowByte = flags[1];
-                FlagsHighByte = flags[2];
+                ControlFlags = BitConverter.ToUInt16(flags, 0);
+                StreamIdByte = flags[2];
             }
 
             /// <summary>
-            /// FlagH[0]: Interleaved
+            /// Flag[8]: Interleaved
             /// </summary>
             public bool IsInterleaved
             {
-                get => (FlagsHighByte & 0x01) != 0;
-                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x01) : (FlagsHighByte & 0xFE));
+                get => ((ControlFlags) & 0x0100) != 0;
+                set => ControlFlags = (ushort)(value ? (ControlFlags | 0x0100) : (ControlFlags & 0xFEFF));
             }
 
             /// <summary>
-            /// FlagH[1]: IsBigEndian
+            /// Flag[9]: IsBigEndian
             /// </summary>
             public bool IsBigEndian
             {
-                get => (FlagsHighByte & 0x02) != 0;
-                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x02) : (FlagsHighByte & 0xFD));
+                get => (ControlFlags & 0x0200) != 0;
+                set => ControlFlags = (ushort)(value ? (ControlFlags | 0x0200) : (ControlFlags & 0xFDFF));
             }
 
             public DataEndian Endian
@@ -261,12 +259,12 @@ namespace CarrotLink.Core.Protocols.Impl
             }
 
             /// <summary>
-            /// FlagH[2]: IsTwosComplement
+            /// Flag[10]: IsTwosComplement
             /// </summary>
             public bool IsTwosComplement
             {
-                get => (FlagsHighByte & 0x04) != 0;
-                set => FlagsHighByte = (byte)(value ? (FlagsHighByte | 0x04) : (FlagsHighByte & 0xFB));
+                get => (ControlFlags & 0x0400) != 0;
+                set => ControlFlags = (ushort)(value ? (ControlFlags | 0x0400) : (ControlFlags & 0xFBFF));
             }
 
             public DataEncoding Encoding
@@ -276,12 +274,12 @@ namespace CarrotLink.Core.Protocols.Impl
             }
 
             /// <summary>
-            /// FlagH[4:3]: DataWidth, 0:32b, 1:16b, 2:8b
+            /// Flag[12:11]: DataWidth, 0:32b, 1:16b, 2:8b
             /// </summary>
             public DataType DataType
             {
-                get => DataTypeConverter.FromFlag((FlagsHighByte & 0x18) >> 3);
-                set => FlagsHighByte = (byte)((FlagsHighByte & 0xE7) | (DataTypeConverter.ToFlag(value) << 3));
+                get => DataTypeConverter.FromFlag((ControlFlags & 0x1800) >> 11);
+                set => ControlFlags = (ushort)((ControlFlags & 0xE7FF) | (DataTypeConverter.ToFlag(value) << 11));
             }
 
             /// <summary>
@@ -289,10 +287,10 @@ namespace CarrotLink.Core.Protocols.Impl
             /// </summary>
             public ushort InterleavedStreamsIdMask
             {
-                get => (ushort)(FlagsLowByte << 8 | StreamIdByte);
+                get => (ushort)(ControlFlags << 8 | StreamIdByte);
                 set
                 {
-                    FlagsLowByte = (byte)(value >> 8);
+                    ControlFlags = (ushort)((ControlFlags & 0xFF00) | (byte)(value >> 8));
                     StreamIdByte = (byte)(value & 0xFF);
                 }
             }

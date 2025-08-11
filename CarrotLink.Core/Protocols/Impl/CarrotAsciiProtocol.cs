@@ -27,14 +27,10 @@ namespace CarrotLink.Core.Protocols.Impl
         public CarrotAsciiProtocol(CarrotAsciiProtocolConfiguration? config)
         {
             _config = config;
-            if (_config != null)
+            _innerProtocol = new CarrotBinaryProtocol(new CarrotBinaryProtocolConfiguration()
             {
-                _innerProtocol = new CarrotBinaryProtocol(new CarrotBinaryProtocolConfiguration()
-                {
-                    CommandPacketLength = 256,
-                    DataPacketLength = _config.DataPacketLength
-                });
-            }
+                CommandPacketLength = 256,
+            });
         }
 
         public byte[] Encode(IPacket packet)

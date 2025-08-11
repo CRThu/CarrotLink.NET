@@ -9,6 +9,5 @@ namespace CarrotLink.Core.Protocols.Configuration
 {
     public class CarrotAsciiProtocolConfiguration : ProtocolConfigBase
     {
-        public int DataPacketLength { get; set; } = 256;
     }
 }
