@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace CarrotLink.Core.Logging
 {
-    public enum LoggerLevel
+    public enum LogLevel
     {
         Debug,
         Info,
@@ -28,7 +28,7 @@ namespace CarrotLink.Core.Logging
 
     public interface IRuntimeLogger : ILogger
     {
-        void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null);
+        void HandleRuntime(string message, LogLevel level = LogLevel.Info, Exception ex = null);
     }
 
 }

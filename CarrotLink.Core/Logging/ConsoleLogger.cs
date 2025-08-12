@@ -10,10 +10,10 @@ namespace CarrotLink.Core.Logging
 {
     public class ConsoleLogger : ILogger, IPacketLogger, IRuntimeLogger
     {
-        private void Log(LoggerLevel type, string message)
+        private void Log(LogLevel type, string message)
         => Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {type.ToString().ToUpper()}: {message}");
 
-        public void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null)
+        public void HandleRuntime(string message, LogLevel level = LogLevel.Info, Exception ex = null)
         {
             if (ex == null)
             {
@@ -27,7 +27,7 @@ namespace CarrotLink.Core.Logging
 
         public void HandlePacket(IPacket packet)
         {
-            Log(LoggerLevel.Info, packet.ToString() ?? "<null>");
+            Log(LogLevel.Info, packet.ToString() ?? "<null>");
         }
 
         public void Dispose()

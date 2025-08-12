@@ -71,36 +71,61 @@ namespace CarrotLink.Core.Protocols.Models
         public ReadOnlySpan<T> Get<T>(int channel) where T : unmanaged
         {
             // 参数验证
-            if (Keys == null)
+            if (Keys == null || Keys.Length == 0)
                 throw new ArgumentNullException(nameof(Keys));
-            if (Keys.Length != 1)
-                throw new NotImplementedException($"当前仅支持单通道数据解析");
+
             if (RawData == null)
                 throw new ArgumentNullException(nameof(RawData));
+
+            // 兼容类型检查
+            if (!IsDirectCast<T>(Type, Encoding))
+            {
+                throw new InvalidCastException($"Type {typeof(T)} is not compatible with data type {Type}");
+            }
 
             if ((Endian == DataEndian.BigEndian) == BitConverter.IsLittleEndian)
                 throw new NotImplementedException($"不支持的大小端: {Endian}");
 
-            int channelIndex = Array.IndexOf(Keys, channel.ToString());
-            if (channelIndex < 0)
-                throw new ArgumentException($"Channel {channel} not found in packet");
-
-            //// 预计算常量
-            //int bytesPerValue = GetBytesPerValue(Type);
-            //int channelCount = Keys.Length;
-            //int totalValues = RawData.Length / (bytesPerValue * channelCount);
-
-            //// 数据完整性检查
-            //if (bytesPerValue * channelCount == 0 || RawData.Length % (bytesPerValue * channelCount) != 0)
-            //    throw new ArgumentException("Invalid raw data length");
-
-            // 兼容类型检查
-            if (IsDirectCast<T>(Type, Encoding))
+            // 单通道数据
+            if (Keys.Length == 1)
             {
+                if (Keys[0] != channel.ToString())
+                {
+                    throw new ArgumentException($"channel {channel} is not exist in packet, it contains {Keys[0]} only.");
+                }
+
                 return MemoryMarshal.Cast<byte, T>(RawData.AsSpan());
             }
 
-            throw new InvalidCastException($"Type {typeof(T)} is not compatible with data type {Type}");
+            // 多通道数据
+            int channelIndex = Array.IndexOf(Keys, channel.ToString());
+            if (channelIndex < 0)
+                throw new ArgumentException($"Channel {channel} is not exist in packet, it contains [{string.Join(", ", Keys)}].");
+
+            // 预计算常量
+            int bytesPerValue = Unsafe.SizeOf<T>();
+            int channelCount = Keys.Length;
+            int frameSize = bytesPerValue * channelCount;
+
+            if (frameSize == 0 || RawData.Length % frameSize != 0)
+                throw new ArgumentException($"payload words can not divided by channel numbers.");
+
+            int valueCount = RawData.Length / frameSize;
+            if (valueCount == 0)
+                return ReadOnlySpan<T>.Empty;
+
+            var result = new T[valueCount];
+            var sourceSpan = RawData.AsSpan();
+
+            for (int i = 0; i < valueCount; i++)
+            {
+                int frameOffset = i * frameSize;
+                int valueInFrameOffset = channelIndex * bytesPerValue;
+
+                result[i] = MemoryMarshal.Read<T>(sourceSpan.Slice(frameOffset + valueInFrameOffset));
+            }
+
+            return new ReadOnlySpan<T>(result);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

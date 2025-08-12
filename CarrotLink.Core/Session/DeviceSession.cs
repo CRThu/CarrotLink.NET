@@ -25,10 +25,12 @@ namespace CarrotLink.Core.Session
         private IDevice _device;
         private IProtocol _protocol;
         private List<IPacketLogger> _loggers;
+        private IRuntimeLogger _runtimeLogger;
 
         public IDevice Device => _device;
         public IProtocol Protocol => _protocol;
         public List<IPacketLogger> Loggers => _loggers;
+        private IRuntimeLogger RuntimeLogger => _runtimeLogger;
 
         // task
         private bool _isAutoPollingEnabled;
@@ -41,9 +43,28 @@ namespace CarrotLink.Core.Session
                                                 && !_pollingTask.IsCompleted
                                                 && !_processingTask.IsCompleted;
 
+        public bool HasError => _isAutoPollingEnabled != IsAutoPollingTaskRunning;
+        public string ErrorDesc
+        {
+            get
+            {
+                if (!HasError)
+                    return "<NO ERROR>";
+                if (_pollingTask != null && _pollingTask.IsCompleted)
+                    return $"Polling task exited, Exception: {_pollingTask.Exception?.InnerException?.Message}";
+                if (_processingTask != null && _processingTask.IsCompleted)
+                    return $"Processing task exited, Exception: {_processingTask.Exception?.InnerException?.Message}.";
+                return "Unknown error.";
+            }
+        }
+
         // for logger event
         public delegate void PacketHandler(IPacket packet);
         public event PacketHandler? OnPacketReceived;
+
+        // for error event
+        public delegate void ErrorHandler(string message, LogLevel level, Exception ex = null);
+        public event ErrorHandler? OnError;
 
         // for processing
         private static ArrayPool<byte> _dataProcPool = ArrayPool<byte>.Create(128 * 1024 * 1024, 5);
@@ -63,13 +84,16 @@ namespace CarrotLink.Core.Session
         public long TotalWriteBytes => _totalWriteBytes;
         public long TotalReadBytes => _totalReadBytes;
 
-        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers, bool autoPolling = true, int pollingInterval = 15)
+        public DeviceSession(IDevice device, IProtocol protocol, IEnumerable<IPacketLogger> loggers, IRuntimeLogger runtimeLogger, bool autoPolling = true, int pollingInterval = 15)
         {
             _device = device;
             _protocol = protocol;
             _loggers = new List<IPacketLogger>(loggers);
 
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
+
+            _runtimeLogger = runtimeLogger;
+            OnError += RuntimeLogger.HandleRuntime;
 
             _isAutoPollingEnabled = autoPolling;
 
@@ -187,10 +211,12 @@ namespace CarrotLink.Core.Session
             }
             catch (Exception ex)
             {
-                _cts.Cancel();
-                //_pipe.Reader.Complete(ex);
+                OnError?.Invoke(ex.Message, LogLevel.Error, ex);
                 Console.WriteLine(ex.ToString());
-                return null;
+                //_cts.Cancel();
+                //_pipe.Reader.Complete(ex);
+                //return null;
+                throw;
             }
         }
 
@@ -258,11 +284,25 @@ namespace CarrotLink.Core.Session
             {
                 Console.WriteLine("DeviceSession.StartAutoPollingAsync() cancelled");
             }
-            finally
+            catch (Exception ex)
             {
-                _pollingTimer?.Dispose();
-                _pollingTimer = null;
+                if (OnError != null)
+                    OnError?.Invoke(ex.Message, LogLevel.Error, ex);
+                else
+                    Console.WriteLine(ex.ToString());
+
+                throw;
             }
+            //finally
+            //{
+            //    if (OnError != null)
+            //        OnError?.Invoke("Polling task run to completed.", LogLevel.Info);
+            //    else
+            //        Console.WriteLine("Polling task run to completed.");
+
+            //    _pollingTimer?.Dispose();
+            //    _pollingTimer = null;
+            //}
         }
 
         // 字节流处理解析
@@ -281,10 +321,22 @@ namespace CarrotLink.Core.Session
             }
             catch (Exception ex)
             {
-                _cts.Cancel();
+                if (OnError != null)
+                    OnError?.Invoke(ex.Message, LogLevel.Error, ex);
+                else
+                    Console.WriteLine(ex.ToString());
+                //_cts.Cancel();
                 // _pipe.Reader.Complete(ex);
-                Console.WriteLine(ex.ToString());
+
+                throw;
             }
+            //finally
+            //{
+            //    if (OnError != null)
+            //        OnError?.Invoke("Processing task run to completed.", LogLevel.Info);
+            //    else
+            //        Console.WriteLine("Processing task run to completed.");
+            //}
         }
 
         // 事件触发模式（需设备支持硬件中断）
