@@ -37,14 +37,16 @@ namespace CarrotLink.Core.Devices.Impl
                 dataBits: _config.DataBits,
                 stopBits: (StopBits)_config.StopBits);
 
-            _serialPort.ReadBufferSize = 16 * 1024 * 1024;
-            _serialPort.WriteBufferSize = 16 * 1024 * 1024;
+            _serialPort.ReadBufferSize = Config.BufferSize;
+            _serialPort.WriteBufferSize = Config.BufferSize;
 
             // ch343 may error when setting -1
+            _serialPort.ReadTimeout = Config.Timeout;
+            _serialPort.WriteTimeout = Config.Timeout;
             //_serialPort.ReadTimeout = int.MaxValue;
             //_serialPort.WriteTimeout = int.MaxValue;
-            _serialPort.ReadTimeout = -1;
-            _serialPort.WriteTimeout = -1;
+            //_serialPort.ReadTimeout = -1;
+            //_serialPort.WriteTimeout = -1;
 
             //if (Config.UseHardwareEvent)
             //{
