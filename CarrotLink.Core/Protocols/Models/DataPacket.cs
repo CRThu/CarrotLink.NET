@@ -21,7 +21,7 @@ namespace CarrotLink.Core.Protocols.Models
 
         public string[] Keys { get; }
         public byte[] RawData { get; }
-        public ReadOnlySpan<T> Get<T>(int channel) where T : unmanaged;
+        public ReadOnlySpan<T> Get<T>(string key) where T : unmanaged;
     }
 
     public record DataPacket : IDataPacket
@@ -68,7 +68,7 @@ namespace CarrotLink.Core.Protocols.Models
             RawData = rawData.ToArray();
         }
 
-        public ReadOnlySpan<T> Get<T>(int channel) where T : unmanaged
+        public ReadOnlySpan<T> Get<T>(string key) where T : unmanaged
         {
             // 参数验证
             if (Keys == null || Keys.Length == 0)
@@ -89,18 +89,18 @@ namespace CarrotLink.Core.Protocols.Models
             // 单通道数据
             if (Keys.Length == 1)
             {
-                if (Keys[0] != channel.ToString())
+                if (Keys[0] != key)
                 {
-                    throw new ArgumentException($"channel {channel} is not exist in packet, it contains {Keys[0]} only.");
+                    throw new ArgumentException($"Key ({key}) is not exist in packet, it contains {Keys[0]} only.");
                 }
 
                 return MemoryMarshal.Cast<byte, T>(RawData.AsSpan());
             }
 
             // 多通道数据
-            int channelIndex = Array.IndexOf(Keys, channel.ToString());
+            int channelIndex = Array.IndexOf(Keys, key);
             if (channelIndex < 0)
-                throw new ArgumentException($"Channel {channel} is not exist in packet, it contains [{string.Join(", ", Keys)}].");
+                throw new ArgumentException($"Key ({key}) is not exist in packet, it contains [{string.Join(", ", Keys)}].");
 
             // 预计算常量
             int bytesPerValue = Unsafe.SizeOf<T>();
