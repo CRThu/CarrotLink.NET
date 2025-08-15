@@ -15,7 +15,7 @@ namespace CarrotLink.Core.Devices.Impl
         protected long _totalReadBytes = 0;
         protected long _totalWriteBytes = 0;
 
-        public bool IsConnected { get; protected set; }
+        public virtual bool IsConnected { get; protected set; }
         public DeviceConfigurationBase Config => _config;
 
         public long TotalReadBytes => _totalReadBytes;

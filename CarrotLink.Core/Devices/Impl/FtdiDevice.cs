@@ -35,7 +35,7 @@ namespace CarrotLink.Core.Devices.Impl
         private static byte[] rxBuffer = new byte[_d2xxMaxReadSize];
 
         public new FtdiConfiguration Config => _config;
-        public new bool IsConnected => ftdi != null && ftdi.IsOpen;
+        public override bool IsConnected => ftdi != null && ftdi.IsOpen;
 
         private readonly object _lock_w = new object();
         private readonly object _lock_r = new object();

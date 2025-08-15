@@ -92,8 +92,11 @@ namespace CarrotLink.Core.Session
 
             _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
 
-            _runtimeLogger = runtimeLogger;
-            OnError += RuntimeLogger.HandleRuntime;
+            if (runtimeLogger != null)
+            {
+                _runtimeLogger = runtimeLogger;
+                OnError += RuntimeLogger.HandleRuntime;
+            }
 
             _isAutoPollingEnabled = autoPolling;
 

@@ -34,8 +34,8 @@ namespace CarrotLink.Client
         {
             Console.WriteLine("[CarrotLink.Client]");
 
-            NiVisaDemo.Test();
-            return;
+            //NiVisaDemo.Test();
+            //return;
 
             Console.WriteLine("StorageBackend test...");
             //StorageBackendTest.StorageBackendSyncTest();
@@ -55,24 +55,24 @@ namespace CarrotLink.Client
             CancellationTokenSource cts = new CancellationTokenSource();
             Console.WriteLine("Initialize device...");
 
-            var config = new SerialConfiguration
-            {
-                DeviceId = "Serial-COM100",
-                PortName = "COM100",
-                BaudRate = 115200,
-            };
-            context.Device = new SerialDevice(config);
+            //var config = new SerialConfiguration
+            //{
+            //    DeviceId = "Serial-COM100",
+            //    PortName = "COM100",
+            //    BaudRate = 115200,
+            //};
+            //context.Device = new SerialDevice(config);
 
             //context.Device = new LoopbackDevice(new LoopbackConfiguration() { DeviceId = "Loopback" });
 
-            //var config = new FtdiConfiguration
-            //{
-            //    DeviceId = "ftdi-1",
-            //    SerialNumber = "FTA8EKKFA",
-            //    Mode = FtdiCommMode.AsyncFifo,
-            //    Model = FtdiModel.Ft2232h,
-            //};
-            //context.Device = new FtdiDevice(config);
+            var config = new FtdiConfiguration
+            {
+                DeviceId = "ftdi-1",
+                SerialNumber = "FTA8EKKFA",
+                Mode = FtdiCommMode.AsyncFifo,
+                Model = FtdiModel.Ft2232h,
+            };
+            context.Device = new FtdiDevice(config);
 
             Console.WriteLine("Initialize done.");
 
@@ -81,7 +81,7 @@ namespace CarrotLink.Client
             context.Loggers = new Dictionary<string, IPacketLogger>()
             {
                 //{"console",new ConsoleLogger() },
-                {"nlog", new NLogWrapper(false,"nlog.log") },
+                {"nlog", new NLogWrapper(true,"nlog.log") },
                 {"storage", new CommandStorage() }
             };
 
@@ -89,6 +89,7 @@ namespace CarrotLink.Client
                 .WithDevice(context.Device)
                 .WithProtocol(context.Protocol)
                 .WithLoggers(context.Loggers.Values)
+                .WithPolling(true,15)
                 .Build();
             Console.WriteLine("Initialize done...");
             Thread.Sleep(1000);

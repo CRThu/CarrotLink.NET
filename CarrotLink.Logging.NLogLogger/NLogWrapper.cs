@@ -29,7 +29,7 @@ namespace CarrotLink.Logging.NLogLogger
                     QueueLimit = 1000000,
                     OverflowAction = AsyncTargetWrapperOverflowAction.Block,
                 };
-                config.AddRule(LogLevel.Trace, LogLevel.Fatal, asyncLogConsole);
+                config.AddRule(NLog.LogLevel.Trace, NLog.LogLevel.Fatal, asyncLogConsole);
             }
 
             if (tofile != default)
@@ -48,7 +48,7 @@ namespace CarrotLink.Logging.NLogLogger
                     QueueLimit = 1000000,
                     OverflowAction = AsyncTargetWrapperOverflowAction.Grow,
                 };
-                config.AddRule(LogLevel.Trace, LogLevel.Fatal, asyncLogFile);
+                config.AddRule(NLog.LogLevel.Trace, NLog.LogLevel.Fatal, asyncLogFile);
             }
             NLog.LogManager.Configuration = config;     // initial
 
@@ -60,20 +60,20 @@ namespace CarrotLink.Logging.NLogLogger
             _logger.Info(packet.ToString());
         }
 
-        public void HandleRuntime(string message, LoggerLevel level = LoggerLevel.Info, Exception ex = null)
+        public void HandleRuntime(string message, Core.Logging.LogLevel level = Core.Logging.LogLevel.Info, Exception ex = null)
         {
             switch (level)
             {
-                case LoggerLevel.Debug:
+                case Core.Logging.LogLevel.Debug:
                     _logger.Debug(message);
                     break;
-                case LoggerLevel.Info:
+                case Core.Logging.LogLevel.Info:
                     _logger.Info(message);
                     break;
-                case LoggerLevel.Warn:
+                case Core.Logging.LogLevel.Warn:
                     _logger.Warn(message);
                     break;
-                case LoggerLevel.Error:
+                case Core.Logging.LogLevel.Error:
                     _logger.Error(ex, message);
                     break;
 
