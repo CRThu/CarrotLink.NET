@@ -59,7 +59,7 @@ namespace CarrotLink.Core.Session
         }
 
         // for logger event
-        public delegate void PacketHandler(IPacket packet);
+        public delegate void PacketHandler(IPacket packet, string sender);
         public event PacketHandler? OnPacketReceived;
 
         // for error event
@@ -156,7 +156,7 @@ namespace CarrotLink.Core.Session
                     if (parsed && packet != null)
                     {
                         // 取得完整数据包
-                        OnPacketReceived?.Invoke(packet);
+                        OnPacketReceived?.Invoke(packet, _device.Config.DeviceId);
                         _pipe.Reader.AdvanceTo(buffer.Start);
                         return packet;
                     }
@@ -199,7 +199,7 @@ namespace CarrotLink.Core.Session
                 }
 
                 // save to storage
-                OnPacketReceived?.Invoke(packet);
+                OnPacketReceived?.Invoke(packet, _device.Config.DeviceId);
 
                 // set examined position
                 //reader.AdvanceTo(buffer.Start, buffer.End);
