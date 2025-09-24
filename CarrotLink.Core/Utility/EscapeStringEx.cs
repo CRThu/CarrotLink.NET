@@ -12,6 +12,45 @@ namespace CarrotLink.Core.Utility
     public static class EscapeStringEx
     {
         /// <summary>
+        /// 字符串转转义字符串
+        /// </summary>
+        /// <param name="bytes">字符串</param>
+        /// <returns>转义字符串</returns>
+        public static string ToEscapeString(this string str)
+        {
+            StringBuilder stringBuilder = new();
+            for (int i = 0; i < str.Length; i++)
+            {
+                // 转义字符 '\' 转义为 '\'
+                if (str[i] == (byte)'\\')
+                {
+                    stringBuilder.Append(@"\\");
+                }
+                // 转义字符 '\r' 转义为 '\r'
+                else if (str[i] == (byte)'\r')
+                {
+                    stringBuilder.Append(@"\r");
+                }
+                // 转义字符 '\n' 转义为 '\n'
+                else if (str[i] == (byte)'\n')
+                {
+                    stringBuilder.Append(@"\n");
+                }
+                // 可打印字符串不转义
+                else if (str[i].IsPrintableAscii())
+                {
+                    stringBuilder.Append((char)str[i]);
+                }
+                // 不可打印字符串转义为 '\NN'
+                else
+                {
+                    stringBuilder.AppendFormat($@"\{str[i]:X2}");
+                }
+            }
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
         /// 字节数组转转义字符串
         /// </summary>
         /// <param name="bytes">字节数组</param>

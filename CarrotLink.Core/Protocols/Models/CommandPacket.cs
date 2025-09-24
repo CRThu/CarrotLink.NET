@@ -15,11 +15,16 @@ namespace CarrotLink.Core.Protocols.Models
     {
         public PacketType PacketType => PacketType.Command;
 
-        public override string ToString() => Command;
+        public override string ToString() => TrimLineEnding(Command);
 
         public static string AddLineEnding(string cmd)
         {
             return cmd.EndsWith('\n') ? cmd : cmd + "\n";
+        }
+
+        public static string TrimLineEnding(string cmd)
+        {
+            return cmd.TrimEnd('\r', '\n');
         }
     }
 }

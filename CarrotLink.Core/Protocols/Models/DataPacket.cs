@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -66,6 +67,69 @@ namespace CarrotLink.Core.Protocols.Models
             Endian = endian;
             Keys = channels.Select(c => c.ToString()).ToArray();
             RawData = rawData.ToArray();
+        }
+
+        public override string ToString()
+        {
+            try
+            {
+                StringBuilder stringBuilder = new StringBuilder();
+
+                stringBuilder.Append($"{{ DATA ({Type}): ");
+
+                if (Keys.Length == 1)
+                {
+                    stringBuilder.Append($"{{ {Keys[0]}: [");
+                    // TODO channel
+                    switch ((Type, Encoding))
+                    {
+                        case (DataType.INT64, DataEncoding.TwosComplement):
+                            stringBuilder.Append(string.Join(',', Get<Int64>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT64, DataEncoding.OffsetBinary):
+                            stringBuilder.Append(string.Join(',', Get<UInt64>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT32, DataEncoding.TwosComplement):
+                            stringBuilder.Append(string.Join(',', Get<Int32>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT32, DataEncoding.OffsetBinary):
+                            stringBuilder.Append(string.Join(',', Get<UInt32>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT16, DataEncoding.TwosComplement):
+                            stringBuilder.Append(string.Join(',', Get<Int16>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT16, DataEncoding.OffsetBinary):
+                            stringBuilder.Append(string.Join(',', Get<UInt16>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT8, DataEncoding.TwosComplement):
+                            stringBuilder.Append(string.Join(',', Get<sbyte>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.INT8, DataEncoding.OffsetBinary):
+                            stringBuilder.Append(string.Join(',', Get<byte>(Keys[0]).ToArray()));
+                            break;
+                        case (DataType.FP64, _):
+                            stringBuilder.Append(string.Join(',', Get<double>(Keys[0]).ToArray()));
+                            break;
+                        default:
+                            throw new NotSupportedException($"Type {Type} is not supported");
+                    }
+
+                    stringBuilder.Append($"] }} }}");
+                }
+                else
+                {
+                    stringBuilder.Append($"{{");
+                    foreach (var key in Keys)
+                        stringBuilder.Append($"{key}: [TODO], ");
+                    stringBuilder.Append($"}}");
+                }
+
+                return stringBuilder.ToString();
+            }
+            catch
+            {
+                return "ERROR WHEN PRINT DATA PACKET";
+            }
         }
 
         public ReadOnlySpan<T> Get<T>(string key) where T : unmanaged
