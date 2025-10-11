@@ -421,8 +421,8 @@ namespace CarrotLink.Core.Protocols.Impl
                 BitConverter.TryWriteBytes(payload.AsSpan(0, 4), (uint)operationCmd);
                 BitConverter.TryWriteBytes(payload.AsSpan(4, 4), (uint)packet.Regfile);
                 BitConverter.TryWriteBytes(payload.AsSpan(8, 4), (uint)packet.Address);
-                BitConverter.TryWriteBytes(payload.AsSpan(12, 4), (uint)packet.StartBits);
-                BitConverter.TryWriteBytes(payload.AsSpan(16, 4), (uint)packet.EndBits);
+                BitConverter.TryWriteBytes(payload.AsSpan(12, 4), (uint)packet.StartBit);
+                BitConverter.TryWriteBytes(payload.AsSpan(16, 4), (uint)packet.EndBit);
                 BitConverter.TryWriteBytes(payload.AsSpan(20, 4), (uint)packet.Value);
             }
             else
@@ -437,18 +437,18 @@ namespace CarrotLink.Core.Protocols.Impl
             if (payload.Length == 16)
                 return new RegisterPacket(
                     RegisterOperationConverter.FromCmd(BitConverter.ToUInt32(payload, 0), false),
-                    BitConverter.ToInt32(payload, 4),
-                    BitConverter.ToInt32(payload, 8),
-                    BitConverter.ToInt32(payload, 12)
+                    BitConverter.ToUInt32(payload, 4),
+                    BitConverter.ToUInt32(payload, 8),
+                    BitConverter.ToUInt32(payload, 12)
                     );
             else
                 return new RegisterPacket(
                     RegisterOperationConverter.FromCmd(BitConverter.ToUInt32(payload, 0), false),
-                    BitConverter.ToInt32(payload, 4),
-                    BitConverter.ToInt32(payload, 8),
-                    BitConverter.ToInt32(payload, 12),
-                    BitConverter.ToInt32(payload, 16),
-                    BitConverter.ToInt32(payload, 20)
+                    BitConverter.ToUInt32(payload, 4),
+                    BitConverter.ToUInt32(payload, 8),
+                    BitConverter.ToUInt32(payload, 12),
+                    BitConverter.ToUInt32(payload, 16),
+                    BitConverter.ToUInt32(payload, 20)
                     );
         }
     }

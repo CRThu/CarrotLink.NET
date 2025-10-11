@@ -11,22 +11,22 @@ namespace CarrotLink.Core.Protocols.Models
     public interface IRegisterPacket : IPacket
     {
         public RegisterOperation Operation { get; }
-        public int Regfile { get; }
-        public int Address { get; }
-        public int StartBits { get; }
-        public int EndBits { get; }
-        public int Value { get; }
+        public uint Regfile { get; }
+        public uint Address { get; }
+        public uint StartBit { get; }
+        public uint EndBit { get; }
+        public uint Value { get; }
     }
 
     public record RegisterPacket : IRegisterPacket
     {
         public PacketType PacketType => PacketType.Register;
         public RegisterOperation Operation { get; init; }
-        public int Regfile { get; init; }
-        public int Address { get; init; }
-        public int StartBits { get; init; }
-        public int EndBits { get; init; }
-        public int Value { get; init; }
+        public uint Regfile { get; init; }
+        public uint Address { get; init; }
+        public uint StartBit { get; init; }
+        public uint EndBit { get; init; }
+        public uint Value { get; init; }
 
         public override string ToString()
         {
@@ -35,14 +35,14 @@ namespace CarrotLink.Core.Protocols.Models
                 RegisterOperation.Write => $"REG{Regfile}.{Address}.WRITE={Value}",
                 RegisterOperation.ReadRequest => $"REG{Regfile}.{Address}.READ?",
                 RegisterOperation.ReadResult => $"REG{Regfile}.{Address}.READ={Value}",
-                RegisterOperation.BitsWrite => $"REG{Regfile}.{Address}.{StartBits}:{EndBits}.WRITE={Value}",
-                RegisterOperation.BitsReadRequest => $"REG{Regfile}.{Address}.{StartBits}:{EndBits}.READ?",
-                RegisterOperation.BitsReadResult => $"REG{Regfile}.{Address}.{StartBits}:{EndBits}.READ={Value}",
+                RegisterOperation.BitsWrite => $"REG{Regfile}.{Address}.{StartBit}:{EndBit}.WRITE={Value}",
+                RegisterOperation.BitsReadRequest => $"REG{Regfile}.{Address}.{StartBit}:{EndBit}.READ?",
+                RegisterOperation.BitsReadResult => $"REG{Regfile}.{Address}.{StartBit}:{EndBit}.READ={Value}",
                 _ => throw new NotImplementedException()
             };
         }
 
-        public RegisterPacket(RegisterOperation operation, int regfile, int address, int value = default)
+        public RegisterPacket(RegisterOperation operation, uint regfile, uint address, uint value = default)
         {
             Operation = operation;
             Regfile = regfile;
@@ -50,13 +50,13 @@ namespace CarrotLink.Core.Protocols.Models
             Value = value;
         }
 
-        public RegisterPacket(RegisterOperation operation, int regfile, int address, int startBits, int endBits, int value = default)
+        public RegisterPacket(RegisterOperation operation, uint regfile, uint address, uint startBit, uint endBit, uint value = default)
         {
             Operation = operation;
             Regfile = regfile;
             Address = address;
-            StartBits = startBits;
-            EndBits = endBits;
+            StartBit = startBit;
+            EndBit = endBit;
             Value = value;
         }
 

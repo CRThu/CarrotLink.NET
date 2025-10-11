@@ -22,20 +22,20 @@ namespace CarrotLink.Core.Session
         public static Task SendRegister(
             this DeviceSession service,
             RegisterOperation operation,
-            int registerFile,
-            int address,
-            int value
+            uint registerFile,
+            uint address,
+            uint value = 0
         ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, value));
 
         // 寄存器操作
         public static Task SendRegister(
             this DeviceSession service,
             RegisterOperation operation,
-            int registerFile,
-            int address,
-            int startBits,
-            int endBits,
-            int value
-        ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, startBits, endBits, value));
+            uint registerFile,
+            uint address,
+            uint startBit,
+            uint endBit,
+            uint value = 0
+        ) => service.WriteAsync(new RegisterPacket(operation, registerFile, address, startBit, endBit, value));
     }
 }

@@ -38,6 +38,7 @@ namespace CarrotLink.Core.Protocols.Impl
             return packet switch
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(CommandPacket.AddLineEnding(cmd.Command)),
+                IRegisterPacket reg => CarrotAsciiProtocolRegisterPacket.EncodeRegister(_config, reg),
                 _ => throw new NotSupportedException($"Unsupported packet type: {packet.PacketType}")
             };
         }
@@ -85,6 +86,52 @@ namespace CarrotLink.Core.Protocols.Impl
 
             buffer = buffer.Slice(reader.Position);
             return true;
+        }
+    }
+    public static class CarrotAsciiProtocolRegisterPacket
+    {
+        public static byte[] EncodeRegister(CarrotAsciiProtocolConfiguration config, IRegisterPacket packet)
+        {
+            if (packet.Regfile >= config.RegfilesCommands.Length)
+                throw new ArgumentOutOfRangeException($"regfile({packet.Regfile}) is out of range(0-{config.RegfilesCommands.Length - 1}).");
+
+            var rfCmds = config.RegfilesCommands[packet.Regfile];
+            string wrapper_first = config.CommandWrapper == CommandWrapper.Func ? "(" : ";";
+            string wrapper_mid = config.CommandWrapper == CommandWrapper.Func ? "," : ";";
+            string wrapper_last = config.CommandWrapper == CommandWrapper.Func ? ");" : ";";
+            string cmd = packet.Operation switch
+            {
+                RegisterOperation.Write =>
+                    /* REG.W(ADDR,VAL); */
+                    $"{rfCmds.WriteRegCommand}{wrapper_first}" +
+                    $"{packet.Address:X}{wrapper_mid}" +
+                    $"{packet.Value:X}{wrapper_last}",
+                RegisterOperation.ReadRequest =>
+                    /* REG.R(ADDR); */
+                    $"{rfCmds.ReadRegCommand}{wrapper_first}" +
+                    $"{packet.Address:X}{wrapper_last}",
+                RegisterOperation.BitsWrite =>
+                    /* REG.BW(ADDR,START,END,VAL); */
+                    $"{rfCmds.WriteBitsCommand}{wrapper_first}" +
+                    $"{packet.Address:X}{wrapper_mid}" +
+                    $"{packet.StartBit}{wrapper_mid}" +
+                    $"{packet.EndBit}{wrapper_mid}" +
+                    $"{packet.Value:X}{wrapper_last}",
+                RegisterOperation.BitsReadRequest =>
+                    /* REG.BR(ADDR,START,END); */
+                    $"{rfCmds.ReadBitsCommand}{wrapper_first}" +
+                    $"{packet.Address:X}{wrapper_mid}" +
+                    $"{packet.StartBit}{wrapper_mid}" +
+                    $"{packet.EndBit}{wrapper_last}",
+                _ => throw new NotImplementedException(),
+            };
+
+            return Encoding.ASCII.GetBytes(cmd.ToString());
+        }
+
+        public static IRegisterPacket DecodeRegister(CarrotAsciiProtocolConfiguration config, byte[] payload)
+        {
+            throw new NotImplementedException();
         }
     }
 }
