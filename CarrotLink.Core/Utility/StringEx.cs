@@ -27,5 +27,24 @@ namespace CarrotLink.Core.Utility
 
             return double.TryParse(input, out result);
         }
+
+        public static bool TryToHex(this string input, out ulong result)
+        {
+            if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                input = input.Substring(2);
+            }
+
+            try
+            {
+                result = Convert.ToUInt64(input, 16);
+                return true;
+            }
+            catch
+            {
+                result = 0;
+                return false;
+            }
+        }
     }
 }

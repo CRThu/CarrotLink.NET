@@ -24,6 +24,8 @@ namespace CarrotLink.Core.Protocols.Impl
 
         private CarrotAsciiProtocolConfiguration _config;
 
+        private IRegisterPacket? _lastRegisterRequest = null;
+
         public CarrotAsciiProtocol(CarrotAsciiProtocolConfiguration? config)
         {
             _config = config;
@@ -35,6 +37,12 @@ namespace CarrotLink.Core.Protocols.Impl
 
         public byte[] Encode(IPacket packet)
         {
+            // 如果上一条指令发送的是REG.R/REG.BR, 保存上下文供回复查询结果使用
+            if (packet is IRegisterPacket registerPacket &&
+                (registerPacket.Operation == RegisterOperation.ReadRequest
+                || registerPacket.Operation == RegisterOperation.BitsReadResult))
+                _lastRegisterRequest = registerPacket;
+
             return packet switch
             {
                 ICommandPacket cmd => Encoding.ASCII.GetBytes(CommandPacket.AddLineEnding(cmd.Command)),
@@ -68,13 +76,30 @@ namespace CarrotLink.Core.Protocols.Impl
                 int colonIndex = payload.IndexOf(':');
                 if (colonIndex > 0)
                 {
-                    string key = payload.Substring(1, colonIndex - 2);
+                    string key = payload.Substring(1, colonIndex - 2).ToUpper();
                     string stringValue = payload.Substring(colonIndex + 1).Trim();
                     if (key == "DATA")
                     {
                         if (StringEx.TryToDouble(stringValue, out var doubleValue))
                         {
                             packet = new DataPacket(new double[] { doubleValue });
+                            buffer = buffer.Slice(reader.Position);
+                            return true;
+                        }
+                    }
+                    else if (key == "REG")
+                    {
+                        // 若上一条发送指令为寄存器请求指令且本次接收到的是寄存器回复指令则使用上下文
+                        if (_lastRegisterRequest != null
+                            && StringEx.TryToHex(stringValue, out var hexValue))
+                        {
+                            if (_lastRegisterRequest.Operation == RegisterOperation.ReadRequest)
+                                packet = new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
+                            else if (_lastRegisterRequest.Operation == RegisterOperation.BitsReadRequest)
+                                packet = new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
+                            else
+                                throw new NotImplementedException("unknown register request & result when decoding.");
+                            _lastRegisterRequest = null;
                             buffer = buffer.Slice(reader.Position);
                             return true;
                         }

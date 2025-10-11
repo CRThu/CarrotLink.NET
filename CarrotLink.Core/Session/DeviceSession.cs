@@ -128,6 +128,19 @@ namespace CarrotLink.Core.Session
                 await _device.WriteAsync(pktBytes, _cts.Token).ConfigureAwait(false);
                 Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
             }
+            catch (OperationCanceledException ex)
+            {
+                Console.WriteLine("DeviceSession.ProcessAsync() cancelled");
+            }
+            catch (Exception ex)
+            {
+                OnError?.Invoke(ex.Message, LogLevel.Error, ex);
+                Console.WriteLine(ex.ToString());
+                //_cts.Cancel();
+                //_pipe.Reader.Complete(ex);
+                //return null;
+                throw;
+            }
             finally
             {
                 Volatile.Write(ref _isWriting, 0);
