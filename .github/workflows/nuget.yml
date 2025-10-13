@@ -30,17 +30,17 @@ jobs:
 
     - name: Copy Readme and License
       run: |
-        mkdir ${{ github.workspace }}/nuget-packages -Force
+        mkdir ${{ github.workspace }}\nuget-packages -Force
         
-        Copy-Item -Path "${{ github.workspace }}/README.md" -Destination "${{ github.workspace }}/nuget-packages/" -Force
-        Copy-Item -Path "${{ github.workspace }}/LICENSE" -Destination "${{ github.workspace }}/nuget-packages/" -Force
+        Copy-Item -Path "${{ github.workspace }}\README.md" -Destination "${{ github.workspace }}\nuget-packages\" -Force
+        Copy-Item -Path "${{ github.workspace }}\LICENSE" -Destination "${{ github.workspace }}\nuget-packages\" -Force
      
     - name: Pack NuGet Package
       run: dotnet pack ${{ env.PROJECT_PATH }} `
         --configuration Release `
         --no-build `
-        --output ${{ github.workspace }}/nuget-packages `
-        -p:PackageReadmeFile=${{ github.workspace }}/README.md `
+        --output ${{ github.workspace }}\nuget-packages `
+        -p:PackageReadmeFile=${{ github.workspace }}\README.md `
         -p:PackageLicenseExpression=Apache-2.0
 
     - name: Publish to NuGet.org
