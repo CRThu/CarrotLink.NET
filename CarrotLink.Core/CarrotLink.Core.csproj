@@ -7,9 +7,11 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Title>$(AssemblyName)</Title>
-    <Version>1.0.149</Version>
-    <AssemblyVersion>1.0.149</AssemblyVersion>
-    <FileVersion>1.0.149</FileVersion>
+    <Version>1.0.150</Version>
+    <AssemblyVersion>1.0.150</AssemblyVersion>
+    <FileVersion>1.0.150</FileVersion>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -35,6 +37,17 @@
     <InheritWinAppVersionFrom>None</InheritWinAppVersionFrom>
     <PackageVersionSettings>AssemblyVersion.IncrementWithAutoReset.None</PackageVersionSettings>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CarrotLink.Core.Ftd2xx" Version="1.0.0" />
