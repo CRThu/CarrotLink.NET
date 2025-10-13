@@ -26,7 +26,7 @@ jobs:
       run: dotnet restore
       
     - name: Build Solution
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
     - name: Pack NuGet Package
       run: dotnet pack ${{ env.PROJECT_PATH }} --configuration Release --no-build --output nuget-packages
