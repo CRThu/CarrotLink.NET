@@ -32,8 +32,8 @@ jobs:
       run: |
         mkdir ${{ github.workspace }}/nuget-packages -Force
         
-        Copy-Item -Path "${{ env.PROJECT_PATH }}/README.md" -Destination "${{ github.workspace }}/nuget-packages/" -Force
-        Copy-Item -Path "${{ env.PROJECT_PATH }}/LICENSE" -Destination "${{ github.workspace }}/nuget-packages/" -Force
+        Copy-Item -Path "${{ github.workspace }}/README.md" -Destination "${{ github.workspace }}/nuget-packages/" -Force
+        Copy-Item -Path "${{ github.workspace }}/LICENSE" -Destination "${{ github.workspace }}/nuget-packages/" -Force
      
     - name: Pack NuGet Package
       run: dotnet pack ${{ env.PROJECT_PATH }} `
