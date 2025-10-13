@@ -7,9 +7,9 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Title>$(AssemblyName)</Title>
-    <Version>1.0.151</Version>
-    <AssemblyVersion>1.0.151</AssemblyVersion>
-    <FileVersion>1.0.151</FileVersion>
+    <Version>1.0.155</Version>
+    <AssemblyVersion>1.0.155</AssemblyVersion>
+    <FileVersion>1.0.155</FileVersion>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/CRThu/CarrotLink.NET</PackageProjectUrl>

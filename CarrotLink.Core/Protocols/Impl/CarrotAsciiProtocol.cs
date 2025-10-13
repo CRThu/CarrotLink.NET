@@ -40,7 +40,7 @@ namespace CarrotLink.Core.Protocols.Impl
             // 如果上一条指令发送的是REG.R/REG.BR, 保存上下文供回复查询结果使用
             if (packet is IRegisterPacket registerPacket &&
                 (registerPacket.Operation == RegisterOperation.ReadRequest
-                || registerPacket.Operation == RegisterOperation.BitsReadResult))
+                || registerPacket.Operation == RegisterOperation.BitsReadRequest))
                 _lastRegisterRequest = registerPacket;
 
             return packet switch
@@ -96,7 +96,7 @@ namespace CarrotLink.Core.Protocols.Impl
                             if (_lastRegisterRequest.Operation == RegisterOperation.ReadRequest)
                                 packet = new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
                             else if (_lastRegisterRequest.Operation == RegisterOperation.BitsReadRequest)
-                                packet = new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
+                                packet = new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, _lastRegisterRequest.StartBit, _lastRegisterRequest.EndBit, (uint)hexValue);
                             else
                                 throw new NotImplementedException("unknown register request & result when decoding.");
                             _lastRegisterRequest = null;
@@ -124,30 +124,35 @@ namespace CarrotLink.Core.Protocols.Impl
             string wrapper_first = config.CommandWrapper == CommandWrapper.Func ? "(" : ";";
             string wrapper_mid = config.CommandWrapper == CommandWrapper.Func ? "," : ";";
             string wrapper_last = config.CommandWrapper == CommandWrapper.Func ? ");" : ";";
+            string terminal = "\r\n";
             string cmd = packet.Operation switch
             {
                 RegisterOperation.Write =>
                     /* REG.W(ADDR,VAL); */
                     $"{rfCmds.WriteRegCommand}{wrapper_first}" +
                     $"{packet.Address:X}{wrapper_mid}" +
-                    $"{packet.Value:X}{wrapper_last}",
+                    $"{packet.Value:X}{wrapper_last}" +
+                    terminal,
                 RegisterOperation.ReadRequest =>
                     /* REG.R(ADDR); */
                     $"{rfCmds.ReadRegCommand}{wrapper_first}" +
-                    $"{packet.Address:X}{wrapper_last}",
+                    $"{packet.Address:X}{wrapper_last}" +
+                    terminal,
                 RegisterOperation.BitsWrite =>
                     /* REG.BW(ADDR,START,END,VAL); */
                     $"{rfCmds.WriteBitsCommand}{wrapper_first}" +
                     $"{packet.Address:X}{wrapper_mid}" +
                     $"{packet.StartBit}{wrapper_mid}" +
                     $"{packet.EndBit}{wrapper_mid}" +
-                    $"{packet.Value:X}{wrapper_last}",
+                    $"{packet.Value:X}{wrapper_last}" +
+                    terminal,
                 RegisterOperation.BitsReadRequest =>
                     /* REG.BR(ADDR,START,END); */
                     $"{rfCmds.ReadBitsCommand}{wrapper_first}" +
                     $"{packet.Address:X}{wrapper_mid}" +
                     $"{packet.StartBit}{wrapper_mid}" +
-                    $"{packet.EndBit}{wrapper_last}",
+                    $"{packet.EndBit}{wrapper_last}" +
+                    terminal,
                 _ => throw new NotImplementedException(),
             };
 
