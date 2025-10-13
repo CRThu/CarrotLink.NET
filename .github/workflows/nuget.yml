@@ -32,6 +32,9 @@ jobs:
       run: |
         mkdir ${{ github.workspace }}\nuget-packages -Force
         
+        Copy-Item -Path "${{ github.workspace }}\README.md" -Destination "${{ github.workspace }}\CarrotLink.Core\" -Force
+        Copy-Item -Path "${{ github.workspace }}\LICENSE" -Destination "${{ github.workspace }}\CarrotLink.Core\" -Force
+     
         Copy-Item -Path "${{ github.workspace }}\README.md" -Destination "${{ github.workspace }}\nuget-packages\" -Force
         Copy-Item -Path "${{ github.workspace }}\LICENSE" -Destination "${{ github.workspace }}\nuget-packages\" -Force
      
@@ -40,7 +43,7 @@ jobs:
         --configuration Release `
         --no-build `
         --output ${{ github.workspace }}\nuget-packages `
-        -p:PackageReadmeFile=${{ github.workspace }}\README.md `
+        -p:PackageReadmeFile=README.md `
         -p:PackageLicenseExpression=Apache-2.0
 
     - name: Publish to NuGet.org
