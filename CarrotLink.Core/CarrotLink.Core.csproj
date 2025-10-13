@@ -7,11 +7,12 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Title>$(AssemblyName)</Title>
-    <Version>1.0.150</Version>
-    <AssemblyVersion>1.0.150</AssemblyVersion>
-    <FileVersion>1.0.150</FileVersion>
+    <Version>1.0.151</Version>
+    <AssemblyVersion>1.0.151</AssemblyVersion>
+    <FileVersion>1.0.151</FileVersion>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/CRThu/CarrotLink.NET</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
