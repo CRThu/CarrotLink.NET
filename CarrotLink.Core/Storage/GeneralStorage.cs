@@ -30,7 +30,7 @@ namespace CarrotLink.Core.Storage
             _filter = filter;
         }
 
-        public void HandlePacket(IPacket packet, string sender)
+        public void HandlePacket(IPacket packet, string from, string to)
         {
             if (_filter != null && _filter(packet))
             {

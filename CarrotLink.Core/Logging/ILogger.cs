@@ -23,7 +23,7 @@ namespace CarrotLink.Core.Logging
 
     public interface IPacketLogger : ILogger
     {
-        void HandlePacket(IPacket packet, string sender);
+        void HandlePacket(IPacket packet, string from, string to);
     }
 
     public interface IRuntimeLogger : ILogger

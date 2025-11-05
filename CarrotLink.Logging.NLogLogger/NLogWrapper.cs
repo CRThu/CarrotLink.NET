@@ -55,9 +55,9 @@ namespace CarrotLink.Logging.NLogLogger
             _logger = LogManager.GetCurrentClassLogger();
         }
 
-        public void HandlePacket(IPacket packet)
+        public void HandlePacket(IPacket packet, string from, string to)
         {
-            _logger.Info(packet.ToString());
+            _logger.Info($"{from}->{to}: {packet}");
         }
 
         public void HandleRuntime(string message, Core.Logging.LogLevel level = Core.Logging.LogLevel.Info, Exception ex = null)

@@ -59,8 +59,10 @@ namespace CarrotLink.Core.Session
         }
 
         // for logger event
-        public delegate void PacketHandler(IPacket packet, string sender);
-        public event PacketHandler? OnPacketReceived;
+        public delegate void PacketReceiveHandler(IPacket packet, string sender);
+        public delegate void PacketSendHandler(IPacket packet, string dest);
+        public event PacketReceiveHandler? OnPacketReceived;
+        public event PacketSendHandler? OnPacketSent;
 
         // for error event
         public delegate void ErrorHandler(string message, LogLevel level, Exception ex = null);
@@ -90,7 +92,8 @@ namespace CarrotLink.Core.Session
             _protocol = protocol;
             _loggers = new List<IPacketLogger>(loggers);
 
-            _loggers.ForEach(l => OnPacketReceived += l.HandlePacket);
+            _loggers.ForEach(l => OnPacketReceived += (p, s) => l.HandlePacket(p, s, "App"));
+            _loggers.ForEach(l => OnPacketSent += (p, dest) => l.HandlePacket(p, "App", dest));
 
             if (runtimeLogger != null)
             {
@@ -127,6 +130,8 @@ namespace CarrotLink.Core.Session
                 var pktBytes = _protocol.Encode(packet);
                 await _device.WriteAsync(pktBytes, _cts.Token).ConfigureAwait(false);
                 Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
+
+                OnPacketSent?.Invoke(packet, _device.Config.DeviceId);
             }
             catch (OperationCanceledException ex)
             {

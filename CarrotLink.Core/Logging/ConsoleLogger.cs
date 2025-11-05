@@ -25,9 +25,9 @@ namespace CarrotLink.Core.Logging
             }
         }
 
-        public void HandlePacket(IPacket packet, string sender)
+        public void HandlePacket(IPacket packet, string from, string to)
         {
-            Log(LogLevel.Info, sender + ": "+packet.ToString() ?? "<null>");
+            Log(LogLevel.Info, $"{from}->{to}: " + packet.ToString() ?? "<null>");
         }
 
         public void Dispose()
