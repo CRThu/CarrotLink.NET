@@ -68,30 +68,112 @@ namespace CarrotLink.Core.Protocols.Impl
             if (!reader.TryReadTo(out ReadOnlySequence<byte> seq, (byte)'\n', true))
                 return false;
 
-            var payload = Encoding.ASCII.GetString(seq).TrimEnd('\r');
+            var payloadSpan = Encoding.ASCII.GetString(seq).AsSpan().TrimEnd('\r');
 
             if (startByte == '[')
             {
-                // 数据包(示例: "[DATA]: 0xAA" )
-                int colonIndex = payload.IndexOf(':');
+                // 数据包(示例:
+                // [DATA]: 0xAA
+                // [DATA]: 25.000
+                // [DATA]: 0xAA, 0xBB
+                // [DATA.iic_addr=0x44]: 0xAA
+                // [DATA.iic_addr=0x44]: T=0xAA, RH=0xBB
+
+                int colonIndex = payloadSpan.IndexOf(':');
                 if (colonIndex > 0)
                 {
-                    string key = payload.Substring(1, colonIndex - 2).ToUpper();
-                    string stringValue = payload.Substring(colonIndex + 1).Trim();
-                    if (key == "DATA")
+                    // "DATA" or "DATA.iic_addr=0x44"
+                    var headerSpan = payloadSpan.Slice(1, colonIndex - 2);
+                    // "0xAA" or "0xAA,0xBB" or "T=0xAA, RH=0xBB"
+                    var bodySpan = payloadSpan.Slice(colonIndex + 1).TrimStart();
+
+                    // "DATA"
+                    var mainKeySpan = headerSpan;
+                    // empty or "iic_addr=0x44"
+                    var channelPrefixSpan = ReadOnlySpan<char>.Empty;
+                    int dotIndex = headerSpan.IndexOf('.');
+                    if (dotIndex > 0)
                     {
-                        if (StringEx.TryToDouble(stringValue, out var doubleValue))
+                        mainKeySpan = headerSpan.Slice(0, dotIndex);
+                        channelPrefixSpan = headerSpan.Slice(dotIndex + 1);
+                    }
+
+                    if (mainKeySpan.Equals("DATA", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var channels = new List<string>();
+                        var values = new List<double>();
+
+                        var remainingBody = bodySpan;
+                        int valueIndex = 0;
+                        while (!remainingBody.IsEmpty)
                         {
-                            packet = new DataPacket(new double[] { doubleValue });
+                            int commaIndex = remainingBody.IndexOf(',');
+                            var chunk = (commaIndex == -1) ? remainingBody : remainingBody.Slice(0, commaIndex);
+
+                            int equalIndex = chunk.IndexOf('=');
+                            ReadOnlySpan<char> channelNameSpan;
+                            ReadOnlySpan<char> valueSpan;
+
+                            if (equalIndex != -1) // 键值对模式: T=0xAA
+                            {
+                                // "T"
+                                channelNameSpan = chunk.Slice(0, equalIndex).Trim();
+                                // "0xAA"
+                                valueSpan = chunk.Slice(equalIndex + 1).Trim();
+                            }
+                            else // 索引模式: 0xAA
+                            {
+                                // Empty
+                                channelNameSpan = ReadOnlySpan<char>.Empty;
+                                // "0xAA"
+                                valueSpan = chunk.Trim();
+                            }
+
+                            if (SpanEx.TryParseNumSpan(valueSpan, out double doubleValue))
+                            {
+                                string baseChannelName = !channelNameSpan.IsEmpty
+                                    ? channelNameSpan.ToString()
+                                    : $"CH{valueIndex}";
+
+                                // [DATA]: T=value => T, [DATA]:value => CH0
+                                string finalChannelName = baseChannelName;
+
+                                if (!channelPrefixSpan.IsEmpty)
+                                {
+                                    if (bodySpan.IndexOf(',') == -1 && bodySpan.IndexOf('=') == -1)
+                                    {
+                                        // [DATA.prefix]: value => prefix
+                                        finalChannelName = channelPrefixSpan.ToString();
+                                    }
+                                    else
+                                    {
+                                        // [DATA.prefix]: T=value => prefix.T
+                                        finalChannelName = $"{channelPrefixSpan.ToString()}.{baseChannelName}";
+                                    }
+                                }
+
+                                channels.Add(finalChannelName);
+                                values.Add(doubleValue);
+                                valueIndex++;
+                            }
+
+                            if (commaIndex == -1)
+                                break;
+                            remainingBody = remainingBody.Slice(commaIndex + 1);
+                        }
+
+                        if (values.Count != 0)
+                        {
+                            packet = new DataPacket(channels, values);
                             buffer = buffer.Slice(reader.Position);
                             return true;
                         }
                     }
-                    else if (key == "REG")
+                    else if (mainKeySpan.Equals("REG", StringComparison.OrdinalIgnoreCase))
                     {
                         // 若上一条发送指令为寄存器请求指令且本次接收到的是寄存器回复指令则使用上下文
                         if (_lastRegisterRequest != null
-                            && StringEx.TryToHex(stringValue, out var hexValue))
+                            && SpanEx.TryParseHexSpan(bodySpan, out var hexValue))
                         {
                             if (_lastRegisterRequest.Operation == RegisterOperation.ReadRequest)
                                 packet = new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
@@ -106,8 +188,9 @@ namespace CarrotLink.Core.Protocols.Impl
                     }
                 }
             }
+
             // 解码ascii命令
-            packet = new CommandPacket(CommandPacket.AddLineEnding(payload));
+            packet = new CommandPacket(CommandPacket.AddLineEnding(payloadSpan.ToString()));
 
             buffer = buffer.Slice(reader.Position);
             return true;
