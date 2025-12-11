@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Cysharp.Text;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -100,7 +101,8 @@ namespace CarrotLink.Core.Protocols.Models
         {
             try
             {
-                StringBuilder stringBuilder = new StringBuilder();
+                //StringBuilder stringBuilder = new StringBuilder();
+                var stringBuilder = ZString.CreateStringBuilder();
                 stringBuilder.Append($"{{ DATA ({Type}): {{");
 
                 var parts = new List<string>();
@@ -110,38 +112,38 @@ namespace CarrotLink.Core.Protocols.Models
                     switch ((Type, Encoding))
                     {
                         case (DataType.INT64, DataEncoding.TwosComplement):
-                            valueString = string.Join(',', Get<Int64>(key).ToArray());
+                            valueString = ZString.Join(',', Get<Int64>(key).ToArray());
                             break;
                         case (DataType.INT64, DataEncoding.OffsetBinary):
-                            valueString = string.Join(',', Get<UInt64>(key).ToArray());
+                            valueString = ZString.Join(',', Get<UInt64>(key).ToArray());
                             break;
                         case (DataType.INT32, DataEncoding.TwosComplement):
-                            valueString = string.Join(',', Get<Int32>(key).ToArray());
+                            valueString = ZString.Join(',', Get<Int32>(key).ToArray());
                             break;
                         case (DataType.INT32, DataEncoding.OffsetBinary):
-                            valueString = string.Join(',', Get<UInt32>(key).ToArray());
+                            valueString = ZString.Join(',', Get<UInt32>(key).ToArray());
                             break;
                         case (DataType.INT16, DataEncoding.TwosComplement):
-                            valueString = string.Join(',', Get<Int16>(key).ToArray());
+                            valueString = ZString.Join(',', Get<Int16>(key).ToArray());
                             break;
                         case (DataType.INT16, DataEncoding.OffsetBinary):
-                            valueString = string.Join(',', Get<UInt16>(key).ToArray());
+                            valueString = ZString.Join(',', Get<UInt16>(key).ToArray());
                             break;
                         case (DataType.INT8, DataEncoding.TwosComplement):
-                            valueString = string.Join(',', Get<sbyte>(key).ToArray());
+                            valueString = ZString.Join(',', Get<sbyte>(key).ToArray());
                             break;
                         case (DataType.INT8, DataEncoding.OffsetBinary):
-                            valueString = string.Join(',', Get<byte>(key).ToArray());
+                            valueString = ZString.Join(',', Get<byte>(key).ToArray());
                             break;
                         case (DataType.FP64, _):
-                            valueString = string.Join(',', Get<double>(key).ToArray());
+                            valueString = ZString.Join(',', Get<double>(key).ToArray());
                             break;
                         default:
                             throw new NotSupportedException($"Type {Type} is not supported");
                     }
                     parts.Add($"{{ {key}: [{valueString}] }}");
                 }
-                stringBuilder.Append(string.Join(", ", parts));
+                stringBuilder.Append(ZString.Join(", ", parts));
                 stringBuilder.Append($"}} }}");
                 return stringBuilder.ToString();
             }

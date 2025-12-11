@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Cysharp.Text;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +19,7 @@ namespace CarrotLink.Core.Utility
         /// <returns>转义字符串</returns>
         public static string ToEscapeString(this string str)
         {
-            StringBuilder stringBuilder = new();
+            var stringBuilder = ZString.CreateStringBuilder();
             for (int i = 0; i < str.Length; i++)
             {
                 // 转义字符 '\' 转义为 '\'
@@ -44,7 +45,7 @@ namespace CarrotLink.Core.Utility
                 // 不可打印字符串转义为 '\NN'
                 else
                 {
-                    stringBuilder.AppendFormat($@"\{str[i]:X2}");
+                    stringBuilder.Append($@"\{str[i]:X2}");
                 }
             }
             return stringBuilder.ToString();
@@ -57,7 +58,7 @@ namespace CarrotLink.Core.Utility
         /// <returns>转义字符串</returns>
         public static string BytesToEscapeString(this byte[] bytes)
         {
-            StringBuilder stringBuilder = new();
+            var stringBuilder = ZString.CreateStringBuilder();
             for (int i = 0; i < bytes.Length; i++)
             {
                 // 转义字符 '\' 转义为 '\'
