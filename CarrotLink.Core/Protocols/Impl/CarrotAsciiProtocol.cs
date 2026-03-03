@@ -60,142 +60,125 @@ namespace CarrotLink.Core.Protocols.Impl
             if (!reader.TryPeek(out var startByte))
                 return false;
 
-            // 解码嵌套协议
+            // 1. 检查嵌套二进制协议
             if (startByte == CarrotBinaryProtocol.StartByte)
                 return _innerProtocol.TryDecode(ref buffer, out packet);
 
-            // 检查ascii协议完整包
+            // 2. 检查 ASCII 完整包 (以 \n 结尾)
             if (!reader.TryReadTo(out ReadOnlySequence<byte> seq, (byte)'\n', true))
                 return false;
 
             var payloadSpan = Encoding.ASCII.GetString(seq).AsSpan().TrimEnd('\r');
 
+            // 3. 处理 Carrot RPC 特征格式: [HEADER]: BODY
             if (startByte == '[')
             {
-                // 数据包(示例:
-                // [DATA]: 0xAA
-                // [DATA]: 25.000
-                // [DATA]: 0xAA, 0xBB
-                // [DATA.iic_addr=0x44]: 0xAA
-                // [DATA.iic_addr=0x44]: T=0xAA, RH=0xBB
-
+                int rightBracketIndex = payloadSpan.IndexOf(']');
                 int colonIndex = payloadSpan.IndexOf(':');
-                if (colonIndex > 0)
+
+                if (rightBracketIndex > 0 && colonIndex > rightBracketIndex)
                 {
-                    // "DATA" or "DATA.iic_addr=0x44"
-                    var headerSpan = payloadSpan.Slice(1, colonIndex - 2);
-                    // "0xAA" or "0xAA,0xBB" or "T=0xAA, RH=0xBB"
-                    var bodySpan = payloadSpan.Slice(colonIndex + 1).TrimStart();
+                    var headerSpan = payloadSpan.Slice(1, rightBracketIndex - 1);
+                    var bodySpan = payloadSpan.Slice(colonIndex + 1).Trim();
 
-                    // "DATA"
-                    var mainKeySpan = headerSpan;
-                    // empty or "iic_addr=0x44"
-                    var channelPrefixSpan = ReadOnlySpan<char>.Empty;
-                    int dotIndex = headerSpan.IndexOf('.');
-                    if (dotIndex > 0)
-                    {
-                        mainKeySpan = headerSpan.Slice(0, dotIndex);
-                        channelPrefixSpan = headerSpan.Slice(dotIndex + 1);
-                    }
+                    // 拆分 Header (如: DATA.IMU -> ["DATA", "IMU"])
+                    var headerParts = headerSpan.ToString().Split('.', StringSplitOptions.RemoveEmptyEntries);
+                    string mainKey = headerParts.Length > 0 ? headerParts[0] : string.Empty;
 
-                    if (mainKeySpan.Equals("DATA", StringComparison.OrdinalIgnoreCase))
+                    // --- DATA 协议解析 ---
+                    if (mainKey.Equals("DATA", StringComparison.OrdinalIgnoreCase))
                     {
                         var channels = new List<string>();
                         var values = new List<double>();
+                        string path = headerParts.Length > 1 ? headerParts[1] : string.Empty;
 
                         var remainingBody = bodySpan;
-                        int valueIndex = 0;
+                        int valIdx = 0;
                         while (!remainingBody.IsEmpty)
                         {
-                            int commaIndex = remainingBody.IndexOf(',');
-                            var chunk = (commaIndex == -1) ? remainingBody : remainingBody.Slice(0, commaIndex);
+                            int commaIdx = remainingBody.IndexOf(',');
+                            var chunk = (commaIdx == -1) ? remainingBody : remainingBody.Slice(0, commaIdx);
+                            int equalIdx = chunk.IndexOf('=');
 
-                            int equalIndex = chunk.IndexOf('=');
-                            ReadOnlySpan<char> channelNameSpan;
-                            ReadOnlySpan<char> valueSpan;
+                            ReadOnlySpan<char> keySpan = equalIdx != -1 ? chunk.Slice(0, equalIdx).Trim() : default;
+                            ReadOnlySpan<char> valSpan = equalIdx != -1 ? chunk.Slice(equalIdx + 1).Trim() : chunk.Trim();
 
-                            if (equalIndex != -1) // 键值对模式: T=0xAA
+                            if (SpanEx.TryParseNumSpan(valSpan, out double dVal))
                             {
-                                // "T"
-                                channelNameSpan = chunk.Slice(0, equalIndex).Trim();
-                                // "0xAA"
-                                valueSpan = chunk.Slice(equalIndex + 1).Trim();
+                                // 拼接通道名逻辑: Path.Key 或 Path 或 Key 或 CHn
+                                string key = !keySpan.IsEmpty ? keySpan.ToString() :
+                                            (!string.IsNullOrEmpty(path) && bodySpan.IndexOf(',') == -1 ? "" : $"CH{valIdx}");
+
+                                string fullName = string.IsNullOrEmpty(path) ? key :
+                                                 string.IsNullOrEmpty(key) ? path : $"{path}.{key}";
+
+                                channels.Add(fullName);
+                                values.Add(dVal);
+                                valIdx++;
                             }
-                            else // 索引模式: 0xAA
-                            {
-                                // Empty
-                                channelNameSpan = ReadOnlySpan<char>.Empty;
-                                // "0xAA"
-                                valueSpan = chunk.Trim();
-                            }
-
-                            if (SpanEx.TryParseNumSpan(valueSpan, out double doubleValue))
-                            {
-                                string baseChannelName = !channelNameSpan.IsEmpty
-                                    ? channelNameSpan.ToString()
-                                    : $"CH{valueIndex}";
-
-                                // [DATA]: T=value => T, [DATA]:value => CH0
-                                string finalChannelName = baseChannelName;
-
-                                if (!channelPrefixSpan.IsEmpty)
-                                {
-                                    if (bodySpan.IndexOf(',') == -1 && bodySpan.IndexOf('=') == -1)
-                                    {
-                                        // [DATA.prefix]: value => prefix
-                                        finalChannelName = channelPrefixSpan.ToString();
-                                    }
-                                    else
-                                    {
-                                        // [DATA.prefix]: T=value => prefix.T
-                                        finalChannelName = $"{channelPrefixSpan.ToString()}.{baseChannelName}";
-                                    }
-                                }
-
-                                channels.Add(finalChannelName);
-                                values.Add(doubleValue);
-                                valueIndex++;
-                            }
-
-                            if (commaIndex == -1)
+                            if (commaIdx == -1)
                                 break;
-                            remainingBody = remainingBody.Slice(commaIndex + 1);
+                            remainingBody = remainingBody.Slice(commaIdx + 1);
                         }
 
-                        if (values.Count != 0)
+                        if (values.Count > 0)
                         {
                             packet = new DataPacket(channels, values);
                             buffer = buffer.Slice(reader.Position);
                             return true;
                         }
                     }
-                    else if (mainKeySpan.Equals("REG", StringComparison.OrdinalIgnoreCase))
+                    // --- REG / BITS 协议解析 ---
+                    else if (mainKey.Equals("REG", StringComparison.OrdinalIgnoreCase))
                     {
-                        // 若上一条发送指令为寄存器请求指令且本次接收到的是寄存器回复指令则使用上下文
-                        if (_lastRegisterRequest != null
-                            && SpanEx.TryParseHexSpan(bodySpan, out var hexValue))
+                        uint address = 0, start = 0, end = 0;
+                        bool hasAddr = false, isBits = false;
+
+                        if (headerParts.Length > 1)
                         {
-                            if (_lastRegisterRequest.Operation == RegisterOperation.ReadRequest)
-                                packet = new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValue);
-                            else if (_lastRegisterRequest.Operation == RegisterOperation.BitsReadRequest)
-                                packet = new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, _lastRegisterRequest.StartBit, _lastRegisterRequest.EndBit, (uint)hexValue);
-                            else
-                                throw new NotImplementedException("unknown register request & result when decoding.");
-                            _lastRegisterRequest = null;
-                            buffer = buffer.Slice(reader.Position);
-                            return true;
+                            if (SpanEx.TryParseHexSpan(headerParts[1], out var addr64))
+                            { address = (uint)addr64; hasAddr = true; }
+
+                            if (headerParts.Length > 2 && headerParts[2].StartsWith("b", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var bSpan = headerParts[2].AsSpan(1);
+                                int uIdx = bSpan.IndexOf('_');
+                                if (uIdx != -1 && uint.TryParse(bSpan.Slice(0, uIdx), out end) && uint.TryParse(bSpan.Slice(uIdx + 1), out start))
+                                    isBits = true;
+                            }
+                        }
+
+                        // 解析 Body (强制十六进制)
+                        if (SpanEx.TryParseHexSpan(bodySpan, out var hexVal))
+                        {
+                            if (hasAddr)
+                            {
+                                packet = isBits ? new RegisterPacket(RegisterOperation.BitsReadResult, 0, address, start, end, (uint)hexVal)
+                                               : new RegisterPacket(RegisterOperation.ReadResult, 0, address, (uint)hexVal);
+                                buffer = buffer.Slice(reader.Position);
+                                return true;
+                            }
+                            else if (_lastRegisterRequest != null) // 上下文兼容
+                            {
+                                packet = _lastRegisterRequest.Operation == RegisterOperation.ReadRequest
+                                    ? new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexVal)
+                                    : new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, _lastRegisterRequest.StartBit, _lastRegisterRequest.EndBit, (uint)hexVal);
+                                _lastRegisterRequest = null;
+                                buffer = buffer.Slice(reader.Position);
+                                return true;
+                            }
                         }
                     }
                 }
             }
 
-            // 解码ascii命令
+            // 4. 默认解析为 CommandPacket (包含 [INFO]: 这种日志消息)
             packet = new CommandPacket(CommandPacket.AddLineEnding(payloadSpan.ToString()));
-
             buffer = buffer.Slice(reader.Position);
             return true;
         }
     }
+
     public static class CarrotAsciiProtocolRegisterPacket
     {
         public static byte[] EncodeRegister(CarrotAsciiProtocolConfiguration config, IRegisterPacket packet)
