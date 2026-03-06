@@ -14,7 +14,13 @@ namespace CarrotLink.UnitTest
         [TestInitialize]
         public void Init()
         {
-            _protocol = new CarrotAsciiProtocol(new CarrotAsciiProtocolConfiguration());
+            _protocol = new CarrotAsciiProtocol(new CarrotAsciiProtocolConfiguration()
+            {
+                RegfilesCommands = new CarrotAsciiProtocolRegfileCommands[] {
+                    new CarrotAsciiProtocolRegfileCommands {Name = "file0", ReadRegCommand="RF0R" },
+                    new CarrotAsciiProtocolRegfileCommands {Name = "file1", ReadRegCommand="RF1R" }
+                }
+            });
         }
 
         [TestMethod]
@@ -134,6 +140,23 @@ namespace CarrotLink.UnitTest
         }
 
         [TestMethod]
+        public void Test_RegisterPacket_ReadResult_Legacy_Parsing()
+        {
+            // tx: REGFILE1 REG READ 0x1234
+            // rx: [REG]: 0x00FF
+            var req = new RegisterPacket(RegisterOperation.ReadRequest, 1, 0x1234);
+            _protocol.Encode(req);
+
+            var buffer = CreateBuffer("[REG]: 0x00FF\r\n");
+            _protocol.TryDecode(ref buffer, out var packet);
+            var reg = (RegisterPacket)packet;
+            Assert.AreEqual(RegisterOperation.ReadResult, reg.Operation);
+            Assert.AreEqual(0x1u, reg.Regfile);
+            Assert.AreEqual(0x1234u, reg.Address);
+            Assert.AreEqual(0x00FFu, reg.Value);
+        }
+
+        [TestMethod]
         public void Test_RegisterPacket_ReadResult_Parsing()
         {
             // [REG.0x4001]: 0x00FF
@@ -146,6 +169,38 @@ namespace CarrotLink.UnitTest
         }
 
         [TestMethod]
+        public void Test_RegisterPacket_ReadResult_Regfile_Parsing()
+        {
+            // [REG.file1.0x4001]: 0x00FF
+            var buffer = CreateBuffer("[REG.file1.0x4001]: 0x00FF\r\n");
+            _protocol.TryDecode(ref buffer, out var packet);
+            var reg = (RegisterPacket)packet;
+            Assert.AreEqual(RegisterOperation.ReadResult, reg.Operation);
+            Assert.AreEqual(0x1u, reg.Regfile);
+            Assert.AreEqual(0x4001u, reg.Address);
+            Assert.AreEqual(0x00FFu, reg.Value);
+        }
+
+        [TestMethod]
+        public void Test_RegisterPacket_BitsReadResult_Legacy_Parsing()
+        {
+            // tx: REGFILE1 REG READ 0x1234 b3_1
+            // rx: [REG]: 0x00FF
+            var req = new RegisterPacket(RegisterOperation.BitsReadRequest, 1, 0x1234, 1, 3);
+            _protocol.Encode(req);
+
+            var buffer = CreateBuffer("[REG]: 0x00FF\r\n");
+            _protocol.TryDecode(ref buffer, out var packet);
+            var reg = (RegisterPacket)packet;
+            Assert.AreEqual(RegisterOperation.BitsReadResult, reg.Operation);
+            Assert.AreEqual(0x1u, reg.Regfile);
+            Assert.AreEqual(0x1234u, reg.Address);
+            Assert.AreEqual(0x1u, reg.StartBit);
+            Assert.AreEqual(0x3u, reg.EndBit);
+            Assert.AreEqual(0x00FFu, reg.Value);
+        }
+
+        [TestMethod]
         public void Test_RegisterPacket_BitsReadResult_Parsing()
         {
             // [REG.0x10.b7_4]: 0xA
@@ -153,6 +208,22 @@ namespace CarrotLink.UnitTest
             _protocol.TryDecode(ref buffer, out var packet);
             var reg = (RegisterPacket)packet;
             Assert.AreEqual(RegisterOperation.BitsReadResult, reg.Operation);
+            Assert.AreEqual(0x0u, reg.Regfile);
+            Assert.AreEqual(0x10u, reg.Address);
+            Assert.AreEqual(7u, reg.EndBit);
+            Assert.AreEqual(4u, reg.StartBit);
+            Assert.AreEqual(0xAu, reg.Value);
+        }
+
+        [TestMethod]
+        public void Test_RegisterPacket_BitsReadResult_Regfile_Parsing()
+        {
+            // [REG.file1.0x10.b7_4]: 0xA
+            var buffer = CreateBuffer("[REG.file1.0x10.b7_4]: 0xA\r\n");
+            _protocol.TryDecode(ref buffer, out var packet);
+            var reg = (RegisterPacket)packet;
+            Assert.AreEqual(RegisterOperation.BitsReadResult, reg.Operation);
+            Assert.AreEqual(0x1u, reg.Regfile);
             Assert.AreEqual(0x10u, reg.Address);
             Assert.AreEqual(7u, reg.EndBit);
             Assert.AreEqual(4u, reg.StartBit);

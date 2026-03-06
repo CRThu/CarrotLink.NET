@@ -22,7 +22,7 @@ namespace CarrotLink.Core.Protocols.Impl
 
         public ProtocolConfigBase Config => _config;
 
-        private CarrotAsciiProtocolConfiguration _config;
+        private CarrotAsciiProtocolConfiguration? _config;
 
         private IRegisterPacket? _lastRegisterRequest = null;
 
@@ -129,44 +129,72 @@ namespace CarrotLink.Core.Protocols.Impl
                         }
                     }
                     // --- REG / BITS 协议解析 ---
-                    else if (mainKey.Equals("REG", StringComparison.OrdinalIgnoreCase))
+                    else if (mainKey.Equals("REG", StringComparison.OrdinalIgnoreCase) && headerParts.Length >= 1)
                     {
-                        uint address = 0, start = 0, end = 0;
-                        bool hasAddr = false, isBits = false;
+                        uint address = 0, start = 0, end = 0, regFileIdx = 0;
+                        bool isBits = false;
 
-                        if (headerParts.Length > 1)
+                        // 采用倒序逻辑确定各部分位置，不依赖 0x 前缀
+                        int lastIdx = headerParts.Length - 1;
+                        int addrIdx = lastIdx;
+                        string? fileName = null;
+
+                        // 1. 判断最后一部分是不是位域 (形如 b7_4)
+                        if (headerParts[lastIdx].StartsWith("b", StringComparison.OrdinalIgnoreCase))
                         {
-                            if (SpanEx.TryParseHexSpan(headerParts[1], out var addr64))
-                            { address = (uint)addr64; hasAddr = true; }
-
-                            if (headerParts.Length > 2 && headerParts[2].StartsWith("b", StringComparison.OrdinalIgnoreCase))
+                            var bSpan = headerParts[lastIdx].AsSpan(1);
+                            int uIdx = bSpan.IndexOf('_');
+                            if (uIdx != -1 && uint.TryParse(bSpan.Slice(0, uIdx), out end) && uint.TryParse(bSpan.Slice(uIdx + 1), out start))
                             {
-                                var bSpan = headerParts[2].AsSpan(1);
-                                int uIdx = bSpan.IndexOf('_');
-                                if (uIdx != -1 && uint.TryParse(bSpan.Slice(0, uIdx), out end) && uint.TryParse(bSpan.Slice(uIdx + 1), out start))
-                                    isBits = true;
+                                isBits = true;
+                                addrIdx = lastIdx - 1; // 如果有位域，地址在它前面一位
                             }
                         }
 
-                        // 解析 Body (强制十六进制)
-                        if (SpanEx.TryParseHexSpan(bodySpan, out var hexVal))
+                        // 2. 检查是否有 RegFile 路径 (如果地址位不是紧跟在 REG 后面)
+                        // headerParts 结构 [0]=REG, [1]=FILE(可选), [2]=ADDR, [3]=BITS(可选)
+                        if (addrIdx > 1)
                         {
-                            if (hasAddr)
+                            fileName = headerParts[1];
+                        }
+
+                        // 3. 解析地址 (必须存在)
+                        if (addrIdx >= 1 && SpanEx.TryParseHexSpan(headerParts[addrIdx], out var addr64))
+                        {
+                            address = (uint)addr64;
+
+                            // 匹配 RegFile 索引
+                            if (!string.IsNullOrEmpty(fileName) && _config?.RegfilesCommands != null)
                             {
-                                packet = isBits ? new RegisterPacket(RegisterOperation.BitsReadResult, 0, address, start, end, (uint)hexVal)
-                                               : new RegisterPacket(RegisterOperation.ReadResult, 0, address, (uint)hexVal);
+                                for (int i = 0; i < _config.RegfilesCommands.Length; i++)
+                                {
+                                    if (string.Equals(_config.RegfilesCommands[i].Name, fileName, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        regFileIdx = (uint)i;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // 4. 解析 Body (强制十六进制)
+                            if (SpanEx.TryParseHexSpan(bodySpan, out var hexVal))
+                            {
+                                packet = isBits ? new RegisterPacket(RegisterOperation.BitsReadResult, regFileIdx, address, start, end, (uint)hexVal)
+                                               : new RegisterPacket(RegisterOperation.ReadResult, regFileIdx, address, (uint)hexVal);
                                 buffer = buffer.Slice(reader.Position);
                                 return true;
                             }
-                            else if (_lastRegisterRequest != null) // 上下文兼容
-                            {
-                                packet = _lastRegisterRequest.Operation == RegisterOperation.ReadRequest
-                                    ? new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexVal)
-                                    : new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, _lastRegisterRequest.StartBit, _lastRegisterRequest.EndBit, (uint)hexVal);
-                                _lastRegisterRequest = null;
-                                buffer = buffer.Slice(reader.Position);
-                                return true;
-                            }
+                        }
+
+                        // 备选逻辑：处理不带 Header 地址的回复 (上下文兼容)
+                        if (packet == null && _lastRegisterRequest != null && SpanEx.TryParseHexSpan(bodySpan, out var hexValLegacy))
+                        {
+                            packet = _lastRegisterRequest.Operation == RegisterOperation.ReadRequest
+                                ? new RegisterPacket(RegisterOperation.ReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, (uint)hexValLegacy)
+                                : new RegisterPacket(RegisterOperation.BitsReadResult, _lastRegisterRequest.Regfile, _lastRegisterRequest.Address, _lastRegisterRequest.StartBit, _lastRegisterRequest.EndBit, (uint)hexValLegacy);
+                            _lastRegisterRequest = null;
+                            buffer = buffer.Slice(reader.Position);
+                            return true;
                         }
                     }
                 }
@@ -181,10 +209,10 @@ namespace CarrotLink.Core.Protocols.Impl
 
     public static class CarrotAsciiProtocolRegisterPacket
     {
-        public static byte[] EncodeRegister(CarrotAsciiProtocolConfiguration config, IRegisterPacket packet)
+        public static byte[] EncodeRegister(CarrotAsciiProtocolConfiguration? config, IRegisterPacket packet)
         {
-            if (packet.Regfile >= config.RegfilesCommands.Length)
-                throw new ArgumentOutOfRangeException($"regfile({packet.Regfile}) is out of range(0-{config.RegfilesCommands.Length - 1}).");
+            if (config == null || config.RegfilesCommands == null || packet.Regfile >= config.RegfilesCommands.Length)
+                throw new ArgumentOutOfRangeException($"regfile({packet.Regfile}) is out of range.");
 
             var rfCmds = config.RegfilesCommands[packet.Regfile];
             string wrapper_first = config.CommandWrapper == CommandWrapper.Func ? "(" : ";";
