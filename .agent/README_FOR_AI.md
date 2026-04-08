@@ -161,3 +161,30 @@ AI 执行者在编写代码前应优先复用以下工具类：
 *   **禁止硬编码**: 严禁将设备地址、波特率等配置硬编码在 `Device` 实现类中，必须通过 `Configuration` 类注入。
 *   **禁止破坏性解析**: 严禁在 `TryDecode` 中使用 `buffer.ToArray()`，这会破坏 `ReadOnlySequence` 的零拷贝优势。
 *   **禁止绕过 Session**: 严禁在应用层直接操作底层 `IDevice` 的 Read/Write，必须通过 `DeviceSession` 进行调度以维持状态一致性。
+
+## 13. 扩展项目 (Extension Projects)
+
+### 13.1 CarrotLink.NFC
+*   **定位**: 提供硬件无关的 NFC 通信抽象模型，通过“助记符 (Mnemonic) + 语义化动作 (Action)”简化 NFC 交互过程。
+*   **模型层 (`CarrotLink.NFC.Models`)**:
+    *   **`NfcAction`**: 语义化动作枚举。
+        *   控制原语: `FieldOn`, `FieldOff`, `Halt`。
+        *   请求指令: `REQA`, `WUPA`, `ListPassiveTarget`, `Transceive`。
+        *   响应结果: `GetAtqa`, `GetSak`, `GetUid`, `Response`。
+    *   **`NfcPacket`**: 实现 `ICommandPacket` 的 `record` 模型。
+        *   `Command` 计算属性: 聚合展示助记符、十六进制 Payload 和 Action 状态，支持空保护。
+*   **协议层 (`CarrotLink.NFC.Protocols`)**:
+    *   **`Pn532HsuProtocol`**: 针对 PN532 HSU (High-Speed UART) 的协议实现。
+        *   **帧结构**: `00 00 FF LEN LCS [TFI DATA] DCS 00`。
+        *   **校验算法**:
+            *   `LCS`: `(0x100 - (LEN & 0xFF)) & 0xFF`。
+            *   `DCS`: `(0x100 - (Sum(TFI+DATA) & 0xFF)) & 0xFF`。
+        *   **ACK 机制**: 自动识别并过滤静默 ACK 帧 (`00 00 FF 00 FF 00`)。
+        *   **指令映射**:
+            *   `ListPassiveTarget` 映射至 PN532 指令 `0x4A 01 00`。
+            *   `REQA`/`WUPA`/`Halt` 映射至 `InCommunicateThru` (`0x42`) 模式。
+        *   **响应解析**: 解析 `TFI=0xD5` 后的 OpCode。对于 `0x4B` (ListPassiveTarget) 响应，解析 `NbTarget` 并提取卡片特征（ATQA+SAK+UID）至 `Payload`。
+*   **目录结构**:
+    *   `Models/`: 存放动作枚举与报文模型。
+    *   `Protocols/`: 存放具体硬件的协议映射实现。
+    *   `Utility/`: 存放 NFC 专用的扩展辅助逻辑。
