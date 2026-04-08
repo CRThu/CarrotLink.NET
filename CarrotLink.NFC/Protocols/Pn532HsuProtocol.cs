@@ -4,6 +4,9 @@ using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.NFC.Models;
 using System.Buffers;
 using CarrotLink.Core.Utility;
+using System.Collections.Generic;
+using System;
+using System.Linq;
 
 namespace CarrotLink.NFC.Protocols;
 
@@ -14,13 +17,21 @@ public class Pn532ProtocolConfig : ProtocolConfigBase { }
 
 /// <summary>
 /// PN532 HSU (High-Speed UART) 协议实现。
-/// 负责 NfcAction 与 PN532 指令帧的相互转换。
+/// 实现在芯片层级 (Layer 2) 与 卡片语义层 (Layer 7) 的解耦与桥接。
 /// </summary>
 public class Pn532HsuProtocol : IProtocol
 {
     public string ProtocolName => "PN532_HSU";
     public int ProtocolVersion => 1;
     public ProtocolConfigBase Config { get; } = new Pn532ProtocolConfig();
+
+    public NfcCommandRegistry Registry => _registry;
+    private readonly NfcCommandRegistry _registry;
+
+    public Pn532HsuProtocol(NfcCommandRegistry registry)
+    {
+        _registry = registry;
+    }
 
     // PN532 ACK 帧: 00 00 FF 00 FF 00
     private static readonly byte[] PN532_ACK = { 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00 };
@@ -30,33 +41,42 @@ public class Pn532HsuProtocol : IProtocol
         if (packet is not NfcPacket nfcPacket) return Array.Empty<byte>();
 
         List<byte> body = new List<byte> { 0xD4 }; // TFI: Host to PN532
-
-        if (nfcPacket.CommandDefinition != null)
+        
+        var def = nfcPacket.Definition;
+        if (def == null && !string.IsNullOrEmpty(nfcPacket.Mnemonic))
         {
-            body.Add(nfcPacket.CommandDefinition.OpCode);
-            foreach (var descriptor in nfcPacket.CommandDefinition.GetDescriptors())
+            def = _registry.TryGetByMnemonic(nfcPacket.Mnemonic);
+        }
+
+        if (def != null)
+        {
+            if (def.IsSystemCommand)
             {
-                body.AddRange(descriptor.Value.ToArray());
+                // 系统指令：直接封装 OpCode
+                body.Add(def.OpCode);
+            }
+            else
+            {
+                // 卡片指令：自动套壳 InDataExchange (0x40) + Tg (0x01)
+                body.Add(0x40);
+                body.Add(0x01);
+                body.Add(def.OpCode);
             }
         }
-        else
+        else if (nfcPacket.Payload != null)
         {
-            // 如果没有定义，回退到原始解析方式（保持兼容性）
-            switch (nfcPacket.Action)
-            {
-                case NfcAction.ListPassiveTarget:
-                    body.AddRange(new byte[] { 0x4A, 0x01, 0x00 });
-                    break;
-                case NfcAction.REQA:
-                    body.AddRange(new byte[] { 0x42, 0x26 });
-                    break;
-                case NfcAction.WUPA:
-                    body.AddRange(new byte[] { 0x42, 0x52 });
-                    break;
-                case NfcAction.Halt:
-                    body.AddRange(new byte[] { 0x42, 0x50, 0x00 });
-                    break;
-            }
+            // 无定义但在 Payload 中有数据，默认作为原始载荷发送
+            // 此处可以判断是否需要套壳，如果不以 0xD4/0xD5 开头且非系统指令，可考虑辅助套壳
+            // 简单处理：如果是手工 HEX 模式，通常包含所有字节，不在此处画蛇添足
+            body.Clear(); // 覆盖默认 D4
+            body.AddRange(nfcPacket.Payload);
+            return BuildFrame(body.ToArray());
+        }
+
+        // 添加参数载荷
+        if (nfcPacket.Payload != null)
+        {
+            body.AddRange(nfcPacket.Payload);
         }
 
         return BuildFrame(body.ToArray());
@@ -66,7 +86,7 @@ public class Pn532HsuProtocol : IProtocol
     {
         packet = null;
 
-        // 1. 过滤 ACK (静默消耗)
+        // 1. 过滤物理层 ACK
         while (buffer.Length >= 6 && IsAck(buffer))
         {
             buffer = buffer.Slice(6);
@@ -74,129 +94,81 @@ public class Pn532HsuProtocol : IProtocol
 
         if (buffer.Length < 6) return false;
 
-        // 2. 寻找帧头 (00 00 FF)
+        // 2. 物理成帧识别 (00 00 FF ...)
         SequenceReader<byte> reader = new SequenceReader<byte>(buffer);
         if (!FindFrameStart(ref reader)) return false;
 
-        // 3. 读取长度与 LCS
         if (!reader.TryRead(out byte len) || !reader.TryRead(out byte lcs)) return false;
-        if ((byte)(len + lcs) != 0) return false; // 长度校验失败
+        if ((byte)(len + lcs) != 0) return false;
 
-        // 4. 读取数据载荷
-        byte[] data = new byte[len];
-        if (!reader.TryCopyTo(data)) return false;
+        byte[] fullData = new byte[len];
+        if (!reader.TryCopyTo(fullData)) return false;
         reader.Advance(len);
 
-        // 5. 读取 DCS 并校验
         if (!reader.TryRead(out byte dcs)) return false;
-        if (!VerifyChecksum(data, dcs)) return false;
+        if (!VerifyChecksum(fullData, dcs)) return false;
+        reader.TryRead(out _); // Postamble
 
-        // 6. 消耗结束符 Postamble (00)
-        reader.TryRead(out _);
+        // 更新消费进度
+        var consumedPosition = reader.Position;
+        buffer = buffer.Slice(consumedPosition);
 
-        // 更新消耗后的缓冲区指针
-        var frameEndPosition = reader.Position;
-        var consumedBuffer = buffer.Slice(0, frameEndPosition);
-        buffer = buffer.Slice(frameEndPosition);
+        // 3. 解析 TFI (D5 为响应)
+        if (fullData.Length == 0 || fullData[0] != 0xD5) return false;
 
-        // 7. 解析 PN532 响应包 (TFI = 0xD5)
-        if (data.Length > 0 && data[0] == 0xD5)
+        byte chipOpCode = fullData.Length > 1 ? fullData[1] : (byte)0;
+        
+        // 4. 链路层适配逻辑
+        if (chipOpCode == 0x41) // InDataExchange Response
         {
-            byte opCode = data.Length > 1 ? data[1] : (byte)0;
-            // 响应载荷基准 Memory（用于零拷贝分割）
-            // 注意：我们从原始 buffer 中切分出响应字段，而不是使用复制的 data 数组
-            // 找到 data[2] 在原始 buffer 中的位置（跳过 00 00 FF LEN LCS D5 OpCode）
-            var payloadMemory = consumedBuffer.Slice(consumedBuffer.GetPosition(7)).ToArray().AsMemory(); 
-            // 简单处理：如果是从 ReadOnlySequence 直接切分比较复杂，先转为 Memory 处理响应字段
-            // 以后可以进一步优化为直接在 ReadOnlySequence 上切分
+            // 剥离芯片壳：D5 41 [Status] ...
+            // Status == 0 表示卡片操作成功
+            byte status = fullData.Length > 2 ? fullData[2] : (byte)0xFF;
+            
+            // 提取纯净的卡片载荷 (跳过 D5 41 Status)
+            byte[] cardPayload = fullData.Skip(3).ToArray();
+            
+            // 尝试恢复语义：卡片响应通常第一个字节是响应码
+            byte cardOpCode = cardPayload.Length > 0 ? cardPayload[0] : (byte)0;
+            var definition = _registry.TryGetByOpCode(cardOpCode, NfcDirection.Response);
 
-            var result = new NfcPacket
+            var packetResult = new NfcPacket
+            {
+                IsSuccess = status == 0,
+                Definition = definition,
+                Payload = cardPayload
+            };
+
+            // 自动填充字段描述符
+            if (definition != null)
+            {
+                packetResult.Descriptors.AddRange(_registry.Interpret(definition, cardPayload.AsMemory()));
+            }
+
+            packet = packetResult;
+        }
+        else
+        {
+            // 芯片系统指令响应
+            var definition = _registry.TryGetByOpCode((byte)(chipOpCode - 1), NfcDirection.Request);
+            byte[] payload = fullData.Skip(2).ToArray();
+            
+            var packetResult = new NfcPacket
             {
                 IsSuccess = true,
-                Action = NfcAction.Response,
-                Mnemonic = $"PN532.{opCode:X2}"
+                Definition = definition,
+                Payload = payload
             };
 
-            // 使用解释器自动分割字段
-            var (action, responseFields) = Pn532Interpreter.Interpret(opCode, payloadMemory);
-            
-            packet = result with 
-            { 
-                Action = action,
-                ResponseFields = responseFields 
-            };
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// PN532 响应解析器，将原始载荷切分为结构化字段。
-    /// </summary>
-    private static class Pn532Interpreter
-    {
-        public static (NfcAction Action, List<NfcFieldDescriptor> Fields) Interpret(byte opCode, ReadOnlyMemory<byte> payload)
-        {
-            var fields = new List<NfcFieldDescriptor>();
-            NfcAction action = NfcAction.Response;
-
-            try
+            if (definition != null)
             {
-                switch (opCode)
-                {
-                    case 0x4B: // InListPassiveTarget Res
-                        action = NfcAction.GetAtqa;
-                        if (payload.Length >= 1)
-                        {
-                            fields.Add(new NfcFieldDescriptor("NbTarget", payload.Slice(0, 1)));
-                            if (payload.Span[0] > 0 && payload.Length >= 6)
-                            {
-                                fields.Add(new NfcFieldDescriptor("Tg", payload.Slice(1, 1)));
-                                fields.Add(new NfcFieldDescriptor("SENS_RES", payload.Slice(2, 2), "ATQA"));
-                                fields.Add(new NfcFieldDescriptor("SEL_RES", payload.Slice(4, 1), "SAK"));
-                                fields.Add(new NfcFieldDescriptor("NFCIDLength", payload.Slice(5, 1)));
-                                int uidLen = payload.Span[5];
-                                if (payload.Length >= 6 + uidLen)
-                                {
-                                    fields.Add(new NfcFieldDescriptor("NFCID", payload.Slice(6, uidLen), "UID"));
-                                }
-                            }
-                        }
-                        break;
-                    case 0x41: // InDataExchange Res
-                        action = NfcAction.Response;
-                        if (payload.Length >= 1)
-                        {
-                            fields.Add(new NfcFieldDescriptor("Status", payload.Slice(0, 1)));
-                            if (payload.Length > 1)
-                            {
-                                fields.Add(new NfcFieldDescriptor("Data", payload.Slice(1)));
-                            }
-                        }
-                        break;
-                    case 0x43: // InCommunicateThru Res
-                        action = NfcAction.Response;
-                        if (payload.Length >= 1)
-                        {
-                            fields.Add(new NfcFieldDescriptor("Status", payload.Slice(0, 1)));
-                            fields.Add(new NfcFieldDescriptor("Data", payload.Slice(1)));
-                        }
-                        break;
-                    default:
-                        fields.Add(new NfcFieldDescriptor("RawPayload", payload));
-                        break;
-                }
-            }
-            catch (Exception)
-            {
-                // 解析失败时保留原始数据
-                fields.Clear();
-                fields.Add(new NfcFieldDescriptor("ParseErrorData", payload));
+                packetResult.Descriptors.AddRange(_registry.Interpret(definition, payload.AsMemory()));
             }
 
-            return (action, fields);
+            packet = packetResult;
         }
+
+        return true;
     }
 
     private bool IsAck(ReadOnlySequence<byte> buffer)
@@ -243,22 +215,16 @@ public class Pn532HsuProtocol : IProtocol
     private byte[] BuildFrame(byte[] body)
     {
         int len = body.Length;
-        byte lcs = (byte)((~len + 1) & 0xFF); // 2's complement of len
-        
+        byte lcs = (byte)((~len + 1) & 0xFF);
         byte sum = 0;
         foreach (byte b in body) sum += b;
-        byte dcs = (byte)((~sum + 1) & 0xFF); // 2's complement of sum
+        byte dcs = (byte)((~sum + 1) & 0xFF);
 
         byte[] frame = new byte[len + 7];
-        frame[0] = 0x00;
-        frame[1] = 0x00;
-        frame[2] = 0xFF;
-        frame[3] = (byte)len;
-        frame[4] = lcs;
+        frame[0] = 0x00; frame[1] = 0x00; frame[2] = 0xFF;
+        frame[3] = (byte)len; frame[4] = lcs;
         Array.Copy(body, 0, frame, 5, len);
-        frame[len + 5] = dcs;
-        frame[len + 6] = 0x00;
-
+        frame[len + 5] = dcs; frame[len + 6] = 0x00;
         return frame;
     }
 }

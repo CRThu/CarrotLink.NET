@@ -1,66 +1,107 @@
 using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Utility;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 namespace CarrotLink.NFC.Models;
 
 /// <summary>
-/// NFC 结构化报文模型，基于助记符与字段描述符。
+/// NFC 结构化报文模型，支持动态自解释展示。
 /// </summary>
 public record NfcPacket : ICommandPacket
 {
-    /// <summary>
-    /// 实现 ICommandPacket 接口，固定为 Command 类型。
-    /// </summary>
     public PacketType PacketType => PacketType.Command;
 
     /// <summary>
-    /// 计算属性：聚合展示助记符与格式化后的字段列表。
+    /// 自解释指令描述。
+    /// 逻辑：根据 Definition 切分 Payload 展示字段，否则退化为 HEX 模式。
     /// </summary>
     public string Command
     {
         get
         {
-            var fields = IsSuccess ? ResponseFields : RequestFields;
-            var fieldsStr = fields != null && fields.Count > 0 
-                ? $" {{{string.Join(", ", fields)}}}" 
-                : "";
-            return $"[{Mnemonic}] ({Action}, OK={IsSuccess}){fieldsStr}";
+            var mnemonic = Definition?.Mnemonic ?? (string.IsNullOrEmpty(Mnemonic) ? "Unknown" : Mnemonic);
+            
+            if (Definition == null || Payload == null || Payload.Length == 0)
+            {
+                var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
+                return $"[{mnemonic}] {hex}".Trim();
+            }
+
+            // 根据 Definition 切片展示
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"[{mnemonic}] {{");
+            
+            try
+            {
+                int offset = 0;
+                var byteSpan = Payload.AsSpan();
+                
+                for (int i = 0; i < Definition.Fields.Count; i++)
+                {
+                    var field = Definition.Fields[i];
+                    if (offset >= byteSpan.Length) break;
+
+                    int len = field.Length == -1 ? byteSpan.Length - offset : field.Length;
+                    if (offset + len > byteSpan.Length) len = byteSpan.Length - offset;
+
+                    var segment = byteSpan.Slice(offset, len);
+                    sb.Append($"{field.Name}: {segment.ToArray().BytesToHexString()}");
+                    
+                    if (i < Definition.Fields.Count - 1 && offset + len < byteSpan.Length)
+                        sb.Append(", ");
+
+                    offset += len;
+                }
+
+                // 处理剩余未知数据
+                if (offset < byteSpan.Length)
+                {
+                    if (sb.Length > mnemonic.Length + 4) sb.Append(", ");
+                    sb.Append($"Unknown: {byteSpan.Slice(offset).ToArray().BytesToHexString()}");
+                }
+            }
+            catch
+            {
+                sb.Append($"Error: {Payload.BytesToHexString()}");
+            }
+
+            sb.Append("}");
+            return sb.ToString();
         }
     }
 
     /// <summary>
-    /// 语义化动作枚举。
+    /// 语义化动作枚举（保留兼容）。
     /// </summary>
     public NfcAction Action { get; init; }
 
     /// <summary>
-    /// 助记符 (如 "PN532.ListTarget")。
+    /// 助记符。
     /// </summary>
     public string Mnemonic { get; init; } = string.Empty;
 
     /// <summary>
-    /// 请求字段列表。
+    /// 当前报文绑定的动态定义。
     /// </summary>
-    public List<NfcFieldDescriptor> RequestFields { get; init; } = new();
+    public NfcFrameDefinition? Definition { get; init; }
 
     /// <summary>
-    /// 响应字段列表。
+    /// 报文原始载荷。
     /// </summary>
-    public List<NfcFieldDescriptor> ResponseFields { get; init; } = new();
+    public byte[]? Payload { get; init; }
 
     /// <summary>
-    /// 原始指令定义 (用于 Encode)。
+    /// 字段描述符列表（用于逻辑访问，可由定义生成）。
     /// </summary>
-    public INfcCommand? CommandDefinition { get; init; }
+    public List<NfcFieldDescriptor> Descriptors { get; init; } = new();
 
     /// <summary>
     /// 业务层逻辑成功标志。
     /// </summary>
     public bool IsSuccess { get; init; }
 
-    /// <summary>
-    /// 重写以支持日志直接输出。
-    /// </summary>
-    /// <returns>计算后的指令描述字符串</returns>
     public override string ToString() => Command;
 }

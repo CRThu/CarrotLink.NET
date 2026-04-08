@@ -165,20 +165,17 @@ AI 执行者在编写代码前应优先复用以下工具类：
 ## 13. 扩展项目 (Extension Projects)
 
 ### 13.1 CarrotLink.NFC
-*   **定位**: 提供硬件无关的 NFC 通信抽象模型，通过“助记符 (Mnemonic) + 字段描述符 (FieldDescriptor)”简化 NFC 交互过程。
+*   **定位**: 提供硬件无关的 NFC 通信抽象模型，实现卡片逻辑（Layer 7）与芯片协议（Layer 2）的深度解耦。
+*   **核心架构要素**:
+    *   **JSON 驱动的动态指令集**: 通过 `.dev/nfc/*.json` 文件定义卡片指令布局。支持按卡片类型（如 NTAG, MIFARE）分类，并支持助记符（Mnemonic）与操作码（OpCode）的双向映射。
+    *   **通用注册表 (`NfcCommandRegistry`)**: 负责自动扫描 JSON 定义，管理 `MnemonicMap` 与 `OpCodeMap`。支持方向感知的匹配（Request/Response），内置芯片系统级指令（SAMConfig 等）。
+    *   **自解释报文模型 (`NfcPacket`)**: `Command` 属性根据 `Definition` 实现在线字段切分展示。支持原始 `Payload` 存储与解析状态维护。
+    *   **硬件链路适配 (`Pn532HsuProtocol`)**: 遵循“链路套壳”原则。对于卡片指令自动封装/解封 PN532 的传输层包头（如 `InDataExchange`），将纯净载荷透传给注册表进行语义识别。
+    *   **快速交互扩展**: `SendNfcAsync` 支持“助记符 + 十六进制参数”模式发送，并提供 `HEX` 逃逸模式绕过注册表进行底层调试。
 *   **元数据模型 (`CarrotLink.NFC.Models`)**:
-    *   **`NfcFieldDescriptor`**: 描述数据段的最小单元。包含 `FieldName` (语义名), `Value` (ReadOnlyMemory 字节流), `Description` (可选业务说明)。
-    *   **`INfcCommand`**: 指令抽象接口。定义 `OpCode` 并通过 `GetDescriptors()` 自行定义如何序列化为 `FieldDescriptor` 列表。
-    *   **`NfcAction`**: 语义化动作枚举。
-    *   **`NfcPacket`**: 实现 `ICommandPacket` 的 `record` 模型。
-        *   `RequestFields` / `ResponseFields`: 存储结构化字段列表。
-        *   `Command` 计算属性: 自动聚合展示助记符、所有字段的十六进制值及业务描述，支持单行日志高可读性。
-*   **协议层 (`CarrotLink.NFC.Protocols`)**:
-    *   **`Pn532HsuProtocol`**: 针对 PN532 HSU 的协议实现。
-        *   **解耦编码**: `Encode` 优先调用 `INfcCommand.GetDescriptors()` 进行序列化，实现协议逻辑与指令定义的完全解耦。
-        *   **语义解析**: `TryDecode` 引入 `Interpreter` 逻辑。根据响应 `OpCode` 查找字段映射模板，自动将原始包切分为 `ResponseFields`。
-        *   **零拷贝优化**: 在切分响应字段时，优先使用 `ReadOnlyMemory<byte>` 引用协议原始缓冲区。
+    *   **`NfcFrameDefinition`**: 定义卡片层级的指令帧，包含助记符、纯卡片 OpCode、方向及字段序列 (`NfcFieldDefinition`)。
+    *   **`NfcPacket`**: 报文核心容器。
 *   **目录结构**:
-    *   `Models/`: 存放动作枚举、指令定义 (`INfcCommand`) 与报文模型。
-    *   `Protocols/`: 存放具体硬件的帧格式实现与响应解释逻辑 (`Interpreter`)。
-    *   `Utility/`: 存放 NFC 专用的扩展辅助逻辑。
+    *   `Models/`: 存放帧定义与报文 Record。
+    *   `Protocols/`: 存放核心注册表与链路适配协议。
+    *   `Session/`: 存放高层业务扩展方法。
