@@ -165,26 +165,20 @@ AI 执行者在编写代码前应优先复用以下工具类：
 ## 13. 扩展项目 (Extension Projects)
 
 ### 13.1 CarrotLink.NFC
-*   **定位**: 提供硬件无关的 NFC 通信抽象模型，通过“助记符 (Mnemonic) + 语义化动作 (Action)”简化 NFC 交互过程。
-*   **模型层 (`CarrotLink.NFC.Models`)**:
+*   **定位**: 提供硬件无关的 NFC 通信抽象模型，通过“助记符 (Mnemonic) + 字段描述符 (FieldDescriptor)”简化 NFC 交互过程。
+*   **元数据模型 (`CarrotLink.NFC.Models`)**:
+    *   **`NfcFieldDescriptor`**: 描述数据段的最小单元。包含 `FieldName` (语义名), `Value` (ReadOnlyMemory 字节流), `Description` (可选业务说明)。
+    *   **`INfcCommand`**: 指令抽象接口。定义 `OpCode` 并通过 `GetDescriptors()` 自行定义如何序列化为 `FieldDescriptor` 列表。
     *   **`NfcAction`**: 语义化动作枚举。
-        *   控制原语: `FieldOn`, `FieldOff`, `Halt`。
-        *   请求指令: `REQA`, `WUPA`, `ListPassiveTarget`, `Transceive`。
-        *   响应结果: `GetAtqa`, `GetSak`, `GetUid`, `Response`。
     *   **`NfcPacket`**: 实现 `ICommandPacket` 的 `record` 模型。
-        *   `Command` 计算属性: 聚合展示助记符、十六进制 Payload 和 Action 状态，支持空保护。
+        *   `RequestFields` / `ResponseFields`: 存储结构化字段列表。
+        *   `Command` 计算属性: 自动聚合展示助记符、所有字段的十六进制值及业务描述，支持单行日志高可读性。
 *   **协议层 (`CarrotLink.NFC.Protocols`)**:
-    *   **`Pn532HsuProtocol`**: 针对 PN532 HSU (High-Speed UART) 的协议实现。
-        *   **帧结构**: `00 00 FF LEN LCS [TFI DATA] DCS 00`。
-        *   **校验算法**:
-            *   `LCS`: `(0x100 - (LEN & 0xFF)) & 0xFF`。
-            *   `DCS`: `(0x100 - (Sum(TFI+DATA) & 0xFF)) & 0xFF`。
-        *   **ACK 机制**: 自动识别并过滤静默 ACK 帧 (`00 00 FF 00 FF 00`)。
-        *   **指令映射**:
-            *   `ListPassiveTarget` 映射至 PN532 指令 `0x4A 01 00`。
-            *   `REQA`/`WUPA`/`Halt` 映射至 `InCommunicateThru` (`0x42`) 模式。
-        *   **响应解析**: 解析 `TFI=0xD5` 后的 OpCode。对于 `0x4B` (ListPassiveTarget) 响应，解析 `NbTarget` 并提取卡片特征（ATQA+SAK+UID）至 `Payload`。
+    *   **`Pn532HsuProtocol`**: 针对 PN532 HSU 的协议实现。
+        *   **解耦编码**: `Encode` 优先调用 `INfcCommand.GetDescriptors()` 进行序列化，实现协议逻辑与指令定义的完全解耦。
+        *   **语义解析**: `TryDecode` 引入 `Interpreter` 逻辑。根据响应 `OpCode` 查找字段映射模板，自动将原始包切分为 `ResponseFields`。
+        *   **零拷贝优化**: 在切分响应字段时，优先使用 `ReadOnlyMemory<byte>` 引用协议原始缓冲区。
 *   **目录结构**:
-    *   `Models/`: 存放动作枚举与报文模型。
-    *   `Protocols/`: 存放具体硬件的协议映射实现。
+    *   `Models/`: 存放动作枚举、指令定义 (`INfcCommand`) 与报文模型。
+    *   `Protocols/`: 存放具体硬件的帧格式实现与响应解释逻辑 (`Interpreter`)。
     *   `Utility/`: 存放 NFC 专用的扩展辅助逻辑。

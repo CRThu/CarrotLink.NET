@@ -31,38 +31,32 @@ public class Pn532HsuProtocol : IProtocol
 
         List<byte> body = new List<byte> { 0xD4 }; // TFI: Host to PN532
 
-        switch (nfcPacket.Action)
+        if (nfcPacket.CommandDefinition != null)
         {
-            case NfcAction.ListPassiveTarget:
-                // InListPassiveTarget: 0x4A, MaxTargets=1, Brty=0(106k TypeA)
-                body.Add(0x4A);
-                body.Add(0x01);
-                body.Add(0x00);
-                break;
-            case NfcAction.REQA:
-                // InCommunicateThru: 0x42, Data=26 (7-bit REQA)
-                body.Add(0x42);
-                body.Add(0x26);
-                break;
-            case NfcAction.WUPA:
-                // InCommunicateThru: 0x42, Data=52 (7-bit WUPA)
-                body.Add(0x42);
-                body.Add(0x52);
-                break;
-            case NfcAction.Halt:
-                // InCommunicateThru: 0x42, Data=50 00 (HALT)
-                body.Add(0x42);
-                body.Add(0x50);
-                body.Add(0x00);
-                break;
-            case NfcAction.Transceive:
-                // 全透传模式
-                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
-                break;
-            default:
-                // 其他情况尝试根据现有 Payload 发送
-                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
-                break;
+            body.Add(nfcPacket.CommandDefinition.OpCode);
+            foreach (var descriptor in nfcPacket.CommandDefinition.GetDescriptors())
+            {
+                body.AddRange(descriptor.Value.ToArray());
+            }
+        }
+        else
+        {
+            // 如果没有定义，回退到原始解析方式（保持兼容性）
+            switch (nfcPacket.Action)
+            {
+                case NfcAction.ListPassiveTarget:
+                    body.AddRange(new byte[] { 0x4A, 0x01, 0x00 });
+                    break;
+                case NfcAction.REQA:
+                    body.AddRange(new byte[] { 0x42, 0x26 });
+                    break;
+                case NfcAction.WUPA:
+                    body.AddRange(new byte[] { 0x42, 0x52 });
+                    break;
+                case NfcAction.Halt:
+                    body.AddRange(new byte[] { 0x42, 0x50, 0x00 });
+                    break;
+            }
         }
 
         return BuildFrame(body.ToArray());
@@ -100,51 +94,109 @@ public class Pn532HsuProtocol : IProtocol
         // 6. 消耗结束符 Postamble (00)
         reader.TryRead(out _);
 
-        // 更新缓冲区游标
-        buffer = buffer.Slice(reader.Position);
+        // 更新消耗后的缓冲区指针
+        var frameEndPosition = reader.Position;
+        var consumedBuffer = buffer.Slice(0, frameEndPosition);
+        buffer = buffer.Slice(frameEndPosition);
 
         // 7. 解析 PN532 响应包 (TFI = 0xD5)
         if (data.Length > 0 && data[0] == 0xD5)
         {
             byte opCode = data.Length > 1 ? data[1] : (byte)0;
-            byte[] rawPayload = data.Skip(2).ToArray();
+            // 响应载荷基准 Memory（用于零拷贝分割）
+            // 注意：我们从原始 buffer 中切分出响应字段，而不是使用复制的 data 数组
+            // 找到 data[2] 在原始 buffer 中的位置（跳过 00 00 FF LEN LCS D5 OpCode）
+            var payloadMemory = consumedBuffer.Slice(consumedBuffer.GetPosition(7)).ToArray().AsMemory(); 
+            // 简单处理：如果是从 ReadOnlySequence 直接切分比较复杂，先转为 Memory 处理响应字段
+            // 以后可以进一步优化为直接在 ReadOnlySequence 上切分
 
             var result = new NfcPacket
             {
                 IsSuccess = true,
-                Payload = rawPayload
+                Action = NfcAction.Response,
+                Mnemonic = $"PN532.{opCode:X2}"
             };
 
-            // 语义映射实现
-            if (opCode == 0x4B) // ListPassiveTarget 响应 (InListPassiveTarget Res)
-            {
-                // 解析格式: NbTargets, [TargetData...]
-                if (rawPayload.Length > 0 && rawPayload[0] > 0)
-                {
-                    // 简化提取逻辑：剥离 NbTarget(1) 和 Tg(1)，保留 ATQA(2)+SAK(1)+UID 等特征
-                    // 注：此处根据需求将整个卡片特征塞进 Payload
-                    result = result with { Action = NfcAction.GetAtqa, Payload = rawPayload.Skip(1).ToArray() };
-                }
-                else
-                {
-                    result = result with { IsSuccess = false, Action = NfcAction.Response };
-                }
-            }
-            else if (opCode == 0x43) // InCommunicateThru 响应
-            {
-                result = result with { Action = NfcAction.Response };
-            }
-            else if (opCode == (data[1] & 0x7F)) 
-            {
-                // 如果返回的是错误帧 (OpCode 第 7 位通常为 1，但 PN532 也有特定错误包)
-                // 这里暂不深入，统一标记失败
-            }
-
-            packet = result;
+            // 使用解释器自动分割字段
+            var (action, responseFields) = Pn532Interpreter.Interpret(opCode, payloadMemory);
+            
+            packet = result with 
+            { 
+                Action = action,
+                ResponseFields = responseFields 
+            };
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// PN532 响应解析器，将原始载荷切分为结构化字段。
+    /// </summary>
+    private static class Pn532Interpreter
+    {
+        public static (NfcAction Action, List<NfcFieldDescriptor> Fields) Interpret(byte opCode, ReadOnlyMemory<byte> payload)
+        {
+            var fields = new List<NfcFieldDescriptor>();
+            NfcAction action = NfcAction.Response;
+
+            try
+            {
+                switch (opCode)
+                {
+                    case 0x4B: // InListPassiveTarget Res
+                        action = NfcAction.GetAtqa;
+                        if (payload.Length >= 1)
+                        {
+                            fields.Add(new NfcFieldDescriptor("NbTarget", payload.Slice(0, 1)));
+                            if (payload.Span[0] > 0 && payload.Length >= 6)
+                            {
+                                fields.Add(new NfcFieldDescriptor("Tg", payload.Slice(1, 1)));
+                                fields.Add(new NfcFieldDescriptor("SENS_RES", payload.Slice(2, 2), "ATQA"));
+                                fields.Add(new NfcFieldDescriptor("SEL_RES", payload.Slice(4, 1), "SAK"));
+                                fields.Add(new NfcFieldDescriptor("NFCIDLength", payload.Slice(5, 1)));
+                                int uidLen = payload.Span[5];
+                                if (payload.Length >= 6 + uidLen)
+                                {
+                                    fields.Add(new NfcFieldDescriptor("NFCID", payload.Slice(6, uidLen), "UID"));
+                                }
+                            }
+                        }
+                        break;
+                    case 0x41: // InDataExchange Res
+                        action = NfcAction.Response;
+                        if (payload.Length >= 1)
+                        {
+                            fields.Add(new NfcFieldDescriptor("Status", payload.Slice(0, 1)));
+                            if (payload.Length > 1)
+                            {
+                                fields.Add(new NfcFieldDescriptor("Data", payload.Slice(1)));
+                            }
+                        }
+                        break;
+                    case 0x43: // InCommunicateThru Res
+                        action = NfcAction.Response;
+                        if (payload.Length >= 1)
+                        {
+                            fields.Add(new NfcFieldDescriptor("Status", payload.Slice(0, 1)));
+                            fields.Add(new NfcFieldDescriptor("Data", payload.Slice(1)));
+                        }
+                        break;
+                    default:
+                        fields.Add(new NfcFieldDescriptor("RawPayload", payload));
+                        break;
+                }
+            }
+            catch (Exception)
+            {
+                // 解析失败时保留原始数据
+                fields.Clear();
+                fields.Add(new NfcFieldDescriptor("ParseErrorData", payload));
+            }
+
+            return (action, fields);
+        }
     }
 
     private bool IsAck(ReadOnlySequence<byte> buffer)
