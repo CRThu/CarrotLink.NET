@@ -167,14 +167,16 @@ AI 执行者在编写代码前应优先复用以下工具类：
 ### 13.1 CarrotLink.NFC
 *   **定位**: 提供硬件无关的 NFC 通信抽象模型，实现卡片逻辑（Layer 7）与芯片协议（Layer 2）的深度解耦。
 *   **核心架构要素**:
-    *   **JSON 驱动的动态指令集**: 通过 `.dev/nfc/*.json` 文件定义卡片指令布局。支持按卡片类型（如 NTAG, MIFARE）分类，并支持助记符（Mnemonic）与操作码（OpCode）的双向映射。
-    *   **通用注册表 (`NfcCommandRegistry`)**: 负责自动扫描 JSON 定义，管理 `MnemonicMap` 与 `OpCodeMap`。支持方向感知的匹配（Request/Response），内置芯片系统级指令（SAMConfig 等）。
-    *   **自解释报文模型 (`NfcPacket`)**: `Command` 属性根据 `Definition` 实现在线字段切分展示。支持原始 `Payload` 存储与解析状态维护。
-    *   **硬件链路适配 (`Pn532HsuProtocol`)**: 遵循“链路套壳”原则。对于卡片指令自动封装/解封 PN532 的传输层包头（如 `InDataExchange`），将纯净载荷透传给注册表进行语义识别。
-    *   **快速交互扩展**: `SendNfcAsync` 支持“助记符 + 十六进制参数”模式发送，并提供 `HEX` 逃逸模式绕过注册表进行底层调试。
+    *   **动态 JSON 指令系统**: 通过 `.dev/nfc/` 目录递归扫描 JSON 文件。指令定义 (`NfcFrameDefinition`) 合并了请求与响应字段描述，建立“助记符 -> 事务”的映射。
+    *   **上下文感知协议层 (`Pn532HsuProtocol`)**: 核心创新点。通过 `_lastRequestDefinition` 维护请求上下文，解决非标卡响应帧缺少 OpCode 的识别难题。
+        *   **发送端**: 识别助记符。系统指令（`PN532.`前缀）直接封装；卡片事务自动叠加 `InDataExchange` (0x40) 套壳。
+        *   **接收端**: 核销 PN532 链路头。提取响应载荷后，利用记忆的上下文定义进行“按字段切分”展示，实现自解释。
+    *   **通用注册表 (`NfcCommandRegistry`)**: 专注卡片层（Layer 7）业务指令。支持补丁式更新（后加载覆盖前者），提供高性能、零分配的字段解析接口。
+    *   **自解释报文模型 (`NfcPacket`)**: 整合 `Direction` (Request/Response) 与 `Definition` 指针。其 `ToString()` 根据包方向自动适配展示布局。
+    *   **高层交互扩展**: `SendNfcAsync` 提供“助记符 + 变长参数”接口，支持根据 JSON 定义自动按位填充十六进制参数，并保留 `HEX` 逃逸调试模式。
 *   **元数据模型 (`CarrotLink.NFC.Models`)**:
-    *   **`NfcFrameDefinition`**: 定义卡片层级的指令帧，包含助记符、纯卡片 OpCode、方向及字段序列 (`NfcFieldDefinition`)。
-    *   **`NfcPacket`**: 报文核心容器。
+    *   **`NfcFrameDefinition`**: 单个定义涵盖完整事务（RequestFields + ResponseFields）。
+    *   **`NfcPacket`**: 状态化报文容器，支持上下文关联。
 *   **目录结构**:
     *   `Models/`: 存放帧定义与报文 Record。
     *   `Protocols/`: 存放核心注册表与链路适配协议。

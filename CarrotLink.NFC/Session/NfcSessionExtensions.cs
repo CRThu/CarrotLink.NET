@@ -37,14 +37,24 @@ public static class NfcSessionExtensions
         {
             var rawHex = cmdLine.Substring(4);
             var payload = rawHex.HexStringToBytes();
-            await session.WriteAsync(new NfcPacket { Payload = payload });
+            await session.WriteAsync(new NfcPacket { Direction = NfcDirection.Request, Payload = payload });
             return;
         }
 
-        // 2. 助记符解析
+        // 2. 解析助记符与参数
         var parts = cmdLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var mnemonic = parts[0];
-        
+        var hexParams = parts.Skip(1).ToArray();
+
+        await session.SendNfcAsync(mnemonic, hexParams);
+    }
+
+    /// <summary>
+    /// 发送带参数的 NFC 指令。
+    /// 根据注册表定义的 RequestFields 自动按位填充。
+    /// </summary>
+    public static async Task SendNfcAsync(this DeviceSession session, string mnemonic, params string[] hexParams)
+    {
         var registry = GetRegistry(session);
         var definition = registry.TryGetByMnemonic(mnemonic);
 
@@ -53,16 +63,50 @@ public static class NfcSessionExtensions
             throw new KeyNotFoundException($"[Registry] 未能识别的助记符: {mnemonic}");
         }
 
-        // 3. 将后续参数合并为载荷
         var paramBytes = new List<byte>();
-        for (int i = 1; i < parts.Length; i++)
+        var fields = definition.RequestFields;
+
+        // 自动化参数序列化：根据定义填充
+        for (int i = 0; i < fields.Count; i++)
         {
-            paramBytes.AddRange(parts[i].HexStringToBytes());
+            if (i >= hexParams.Length) break;
+
+            var field = fields[i];
+            var bytes = hexParams[i].HexStringToBytes();
+
+            if (field.Length == -1)
+            {
+                // 变长字段：直接填充剩余所有输入的十六进制参数
+                paramBytes.AddRange(bytes);
+                for (int j = i + 1; j < hexParams.Length; j++)
+                {
+                    paramBytes.AddRange(hexParams[j].HexStringToBytes());
+                }
+                break;
+            }
+
+            // 定长字段：截断或填充
+            if (bytes.Length > field.Length)
+            {
+                paramBytes.AddRange(bytes.Take(field.Length));
+            }
+            else
+            {
+                paramBytes.AddRange(bytes);
+                // 如果长度不足，保持原样（由底层协议或卡片处理）
+            }
+        }
+
+        // 如果没有字段定义但有参数，则直接按顺序追加 (兜底逻辑)
+        if (fields.Count == 0 && hexParams.Length > 0)
+        {
+            foreach (var p in hexParams) paramBytes.AddRange(p.HexStringToBytes());
         }
 
         await session.WriteAsync(new NfcPacket
         {
             Definition = definition,
+            Direction = NfcDirection.Request,
             Payload = paramBytes.ToArray()
         });
     }

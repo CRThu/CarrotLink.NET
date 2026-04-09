@@ -16,7 +16,7 @@ public record NfcPacket : ICommandPacket
 
     /// <summary>
     /// 自解释指令描述。
-    /// 逻辑：根据 Definition 切分 Payload 展示字段，否则退化为 HEX 模式。
+    /// 逻辑：根据 Direction 选择 RequestFields 或 ResponseFields 切分 Payload 展示字段。
     /// </summary>
     public string Command
     {
@@ -27,30 +27,38 @@ public record NfcPacket : ICommandPacket
             if (Definition == null || Payload == null || Payload.Length == 0)
             {
                 var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
-                return $"[{mnemonic}] {hex}".Trim();
+                return $"[{mnemonic}] {Direction}: {hex}".Trim();
+            }
+
+            // 根据方向选择字段定义
+            var fields = Direction == NfcDirection.Request ? Definition.RequestFields : Definition.ResponseFields;
+            if (fields == null || fields.Count == 0)
+            {
+                return $"[{mnemonic}] {Direction}: {Payload.BytesToHexString()}";
             }
 
             // 根据 Definition 切片展示
             StringBuilder sb = new StringBuilder();
-            sb.Append($"[{mnemonic}] {{");
+            sb.Append($"[{mnemonic}] {Direction} {{");
             
             try
             {
                 int offset = 0;
                 var byteSpan = Payload.AsSpan();
                 
-                for (int i = 0; i < Definition.Fields.Count; i++)
+                for (int i = 0; i < fields.Count; i++)
                 {
-                    var field = Definition.Fields[i];
+                    var field = fields[i];
                     if (offset >= byteSpan.Length) break;
 
+                    // 指令注释：处理变长字段（Length = -1），它会消耗剩余所有载荷。
                     int len = field.Length == -1 ? byteSpan.Length - offset : field.Length;
                     if (offset + len > byteSpan.Length) len = byteSpan.Length - offset;
 
                     var segment = byteSpan.Slice(offset, len);
                     sb.Append($"{field.Name}: {segment.ToArray().BytesToHexString()}");
                     
-                    if (i < Definition.Fields.Count - 1 && offset + len < byteSpan.Length)
+                    if (i < fields.Count - 1 && offset + len < byteSpan.Length)
                         sb.Append(", ");
 
                     offset += len;
@@ -72,6 +80,11 @@ public record NfcPacket : ICommandPacket
             return sb.ToString();
         }
     }
+
+    /// <summary>
+    /// 指令方向 (请求/响应)。
+    /// </summary>
+    public NfcDirection Direction { get; init; }
 
     /// <summary>
     /// 语义化动作枚举（保留兼容）。

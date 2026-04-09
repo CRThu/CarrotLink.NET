@@ -42,6 +42,7 @@ public record NfcFieldDefinition
 /// <summary>
 /// NFC 帧定义模型。
 /// 专注于卡片层（Layer 7）的指令描述，脱离特定的芯片传输协议。
+/// 每个定义描述一个完整的事务（请求 + 潜在响应）。
 /// </summary>
 public record NfcFrameDefinition
 {
@@ -56,14 +57,14 @@ public record NfcFrameDefinition
     public byte OpCode { get; init; }
 
     /// <summary>
-    /// 指令方向 (请求/响应)。
+    /// 发送时的参数布局。
     /// </summary>
-    public NfcDirection Direction { get; init; }
+    public List<NfcFieldDefinition> RequestFields { get; init; } = new();
 
     /// <summary>
-    /// 帧字段序列定义。
+    /// 接收后的载荷布局。
     /// </summary>
-    public List<NfcFieldDefinition> Fields { get; init; } = new();
+    public List<NfcFieldDefinition> ResponseFields { get; init; } = new();
 
     /// <summary>
     /// 标记是否为芯片（如 PN532）系统级指令，系统指令不需要传输层套壳。
