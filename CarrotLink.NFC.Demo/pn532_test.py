@@ -1,11 +1,18 @@
 # /// script
 # dependencies = [
 #   "pyserial",
+#   "loguru",
 # ]
 # ///
 
 import serial
 import time
+from loguru import logger
+import sys
+
+# 配置 loguru 输出格式 (简洁且包含颜色)
+logger.remove()
+logger.add(sys.stderr, format="<green>{time:HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | {message}", colorize=True)
 
 class PN532_HSU:
     def __init__(self, port="COM3", baudrate=115200):
@@ -31,12 +38,15 @@ class PN532_HSU:
         # 帧结构: 00 00 FF [LEN] [LCS] [TFI] [DATA] [DCS] 00
         frame = bytearray([0x00, 0x00, 0xFF, length, lcs, tfi]) + bytearray(data) + bytearray([dcs, 0x00])
         self.ser.write(frame)
-        # print(f"发送: {frame.hex(' ')}")
+        logger.opt(colors=True).info(f"<cyan>TX -> {frame.hex(' ').upper()}</cyan>")
 
     def read_frame(self):
         """读取并解析回复帧"""
         # 等待 ACK (00 00 FF 00 FF 00)
         ack = self.ser.read(6)
+        if len(ack) > 0:
+            logger.opt(colors=True).info(f"<magenta>RX <- {ack.hex(' ').upper()} (ACK)</magenta>")
+        
         if ack != b'\x00\x00\xff\x00\xff\x00':
             return None
         
@@ -51,22 +61,26 @@ class PN532_HSU:
         dcs = self.ser.read(1)[0]
         post = self.ser.read(1)[0]
         
+        full_frame = bytearray(header) + bytearray([length, lcs, tfi]) + bytearray(data) + bytearray([dcs, post])
+        logger.opt(colors=True).info(f"<magenta>RX <- {full_frame.hex(' ').upper()}</magenta>")
+        
         return data
 
     def wakeup(self):
         """发送唤醒序列"""
-        # HSU 唤醒: 发送一串 0x55 并等待
-        self.ser.write(bytearray([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x03, 0xFD, 0xD4, 0x14, 0x01, 0x17, 0x00]))
+        wake_cmd = bytearray([0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x03, 0xFD, 0xD4, 0x14, 0x01, 0x17, 0x00])
+        self.ser.write(wake_cmd)
+        logger.opt(colors=True).info(f"<cyan>TX -> {wake_cmd.hex(' ').upper()} (WAKEUP)</cyan>")
         time.sleep(0.1)
         self.ser.flushInput()
-        print("发送唤醒序列完成")
+        logger.success("唤醒 PN532 完成")
 
     def get_firmware(self):
         """获取固件版本"""
-        self.send_frame([0x02]) # GetFirmwareVersion
+        self.send_frame([0x02])
         res = self.read_frame()
         if res:
-            print(f"PN532 固件版本: {res.hex(' ')}")
+            logger.success(f"PN532 固件版本: {res.hex(' ').upper()}")
             return True
         return False
 
@@ -102,21 +116,18 @@ class PN532_HSU:
             elif sak == 0x20:
                 card_type = "ISO14443-4 兼容卡 (如 CPU卡)"
 
-            print(f"发现卡片! 类型: {card_type}")
-            print(f"UID: {uid.hex(' ').upper()}")
-            print(f"SAK: 0x{sak:02X}, UID长度: {uid_len}")
+            logger.success(f"发现卡片! 类型: <bold>{card_type}</bold>")
+            logger.info(f"UID: {uid.hex(' ').upper()} | SAK: 0x{sak:02X}")
             print("-" * 30)
             return uid, sak
         return None, None
 
 if __name__ == "__main__":
-    # --- 请根据你的设备管理器修改端口号 ---
-    nfc = PN532_HSU(port="COM20", baudrate=115200)
-    
+    nfc = PN532_HSU(port="COM20")
     nfc.wakeup()
     if nfc.get_firmware():
         nfc.sam_config()
-        print("开始寻卡，请将 NTAG 或 MIFARE 卡片靠近天线...")
+        logger.info("开始寻卡...")
         while True:
             nfc.poll_card()
             time.sleep(0.5) # 降低 CPU 占用
