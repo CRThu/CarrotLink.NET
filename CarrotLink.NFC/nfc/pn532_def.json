@@ -1,0 +1,50 @@
+{
+  "Cards": {
+    "PN532": [
+      {
+        "Mnemonic": "GetFirmwareVersion",
+        "OpCode": "0x02",
+        "Direction": "Request"
+      },
+      {
+        "Mnemonic": "GetFirmwareVersion.RES",
+        "OpCode": "0x03",
+        "Direction": "Response",
+        "Fields": [
+          { "Name": "IC", "Length": 1 },
+          { "Name": "Ver", "Length": 1 },
+          { "Name": "Rev", "Length": 1 },
+          { "Name": "Support", "Length": 1 }
+        ]
+      },
+      {
+        "Mnemonic": "SAMConfiguration",
+        "OpCode": "0x14",
+        "Direction": "Request",
+        "Fields": [
+          { "Name": "Mode", "Length": 1 },
+          { "Name": "Timeout", "Length": 1 },
+          { "Name": "IRQ", "Length": 1 }
+        ]
+      },
+      {
+        "Mnemonic": "InListPassiveTarget",
+        "OpCode": "0x4A",
+        "Direction": "Request",
+        "Fields": [
+          { "Name": "MaxTargets", "Length": 1 },
+          { "Name": "Brty", "Length": 1 }
+        ]
+      },
+      {
+        "Mnemonic": "InListPassiveTarget.RES",
+        "OpCode": "0x4B",
+        "Direction": "Response",
+        "Fields": [
+          { "Name": "NbTargets", "Length": 1 },
+          { "Name": "TargetData", "Length": -1, "Note": "Target information including UID" }
+        ]
+      }
+    ]
+  }
+}
