@@ -20,9 +20,9 @@ public class NfcCommandRegistry
     }
 
     /// <summary>
-    /// 从 `.dev/nfc/` 目录递归加载 JSON 定义。
+    /// 从 `nfc/` 目录递归加载 JSON 定义。
     /// </summary>
-    public void LoadFromDirectory(string directoryPath = ".dev/nfc/")
+    public void LoadFromDirectory(string directoryPath = "nfc/")
     {
         if (!Directory.Exists(directoryPath)) return;
 
