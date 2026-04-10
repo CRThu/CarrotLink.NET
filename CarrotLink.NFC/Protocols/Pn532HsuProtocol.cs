@@ -7,6 +7,8 @@ using CarrotLink.Core.Utility;
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
+using CarrotLink.Core.Session;
 
 namespace CarrotLink.NFC.Protocols;
 
@@ -33,6 +35,28 @@ public class Pn532HsuProtocol : IProtocol
     public Pn532HsuProtocol(NfcCommandRegistry registry)
     {
         _registry = registry;
+    }
+
+    public async Task InitializeAsync(DeviceSession session)
+    {
+        // 1. 唤醒 (Wakeup) - 直接向驱动发送原生比特流，避免协议帧包装
+        byte[] wakeupArgs = { 0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        await session.Device.WriteAsync(wakeupArgs).ConfigureAwait(false);
+        await Task.Delay(50).ConfigureAwait(false);
+
+        // 2. 获取版本 (GetFirmware) - 支持直接载荷比特流（首字节 0xD4 表示主机下发）
+        var fwReq = new NfcPacket { Payload = new byte[] { 0xD4, 0x02 }, Direction = NfcDirection.Request, Mnemonic = "GetFirmwareVersion" };
+        if (await session.ExchangeAsync<NfcPacket>(fwReq, null, 1000) is not { IsSuccess: true })
+        {
+            throw new DriverErrorException("握手超时或失败: GetFirmwareVersion");
+        }
+
+        // 3. 配置 (SAMConfiguration) - 包含额外参数
+        var samReq = new NfcPacket { Payload = new byte[] { 0xD4, 0x14, 0x01, 0x14, 0x01 }, Direction = NfcDirection.Request, Mnemonic = "SAMConfiguration" };
+        if (await session.ExchangeAsync<NfcPacket>(samReq, null, 1000) is not { IsSuccess: true })
+        {
+            throw new DriverErrorException("握手超时或失败: SAMConfiguration");
+        }
     }
 
     // PN532 ACK 帧: 00 00 FF 00 FF 00

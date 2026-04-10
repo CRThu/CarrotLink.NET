@@ -59,7 +59,6 @@ class Program
             };
 
             device = DeviceFactory.Create(selectedDevice.Interface, config);
-            device.Connect();
 
             session = new DeviceSessionBuilder()
                 .WithDevice(device)
@@ -67,12 +66,9 @@ class Program
                 .WithPolling(autoPolling: true, interval: 20)
                 .Build();
 
-            Console.WriteLine("\n[2/3] 链路已建立，正在初始化 PN532...");
-
-            // 初始化 SAM (Normal mode)
-            // 0x14 0x01 0x14 0x01 -> SAMConfiguration, Mode=1 (Normal), Timeout=0x14, IRQ=0x01
-            await session.SendNfcAsync("PN532.SAMConfiguration", new byte[] { 0x01, 0x14, 0x01 });
-            Console.WriteLine("SAM 初始化完成。");
+            Console.WriteLine("\n[2/3] 链路已建立，正在执行协议握手与初始化...");
+            await session.ConnectAndInitAsync().ConfigureAwait(false);
+            Console.WriteLine("硬件自检及初始化完成。");
 
             // 3. 循环寻卡
             Console.WriteLine("\n[3/3] 进入寻卡循环，请将 NFC 卡片靠近读卡器...");
@@ -82,7 +78,8 @@ class Program
             {
                 // 发送 InListPassiveTarget 指令 (1个目标, 106kbps TypeA)
                 // 0x4A 0x01 0x00
-                var response = await session.SendNfcWithResponseAsync("PN532.InListPassiveTarget", new byte[] { 0x01, 0x00 }, timeoutMs: 1000);
+                var req = new NfcPacket { Mnemonic = "PN532.InListPassiveTarget", Payload = new byte[] { 0x01, 0x00 }, Direction = NfcDirection.Request };
+                var response = await session.ExchangeAsync<NfcPacket>(req, null, 1000).ConfigureAwait(false);
 
                 if (response != null && response.IsSuccess && response.Payload != null && response.Payload.Length > 0)
                 {

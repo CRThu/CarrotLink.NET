@@ -1,4 +1,4 @@
-﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Protocols.Models;
 using System;
 using System.Buffers;
@@ -17,5 +17,6 @@ namespace CarrotLink.Core.Protocols.Impl
 
         public byte[] Encode(IPacket packet);
         public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet);
+        public Task InitializeAsync(CarrotLink.Core.Session.DeviceSession session) => Task.CompletedTask;
     }
 }

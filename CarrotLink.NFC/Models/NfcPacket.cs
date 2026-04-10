@@ -23,23 +23,23 @@ public record NfcPacket : ICommandPacket
         get
         {
             var mnemonic = Definition?.Mnemonic ?? (string.IsNullOrEmpty(Mnemonic) ? "Unknown" : Mnemonic);
+            var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
             
             if (Definition == null || Payload == null || Payload.Length == 0)
             {
-                var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
-                return $"[{mnemonic}] {Direction}: {hex}".Trim();
+                return $"[Raw Hex: {hex}] [{mnemonic}] {Direction}".Trim();
             }
 
             // 根据方向选择字段定义
             var fields = Direction == NfcDirection.Request ? Definition.RequestFields : Definition.ResponseFields;
             if (fields == null || fields.Count == 0)
             {
-                return $"[{mnemonic}] {Direction}: {Payload.BytesToHexString()}";
+                return $"[Raw Hex: {hex}] [{mnemonic}] {Direction}";
             }
 
             // 根据 Definition 切片展示
             StringBuilder sb = new StringBuilder();
-            sb.Append($"[{mnemonic}] {Direction} {{");
+            sb.Append($"[Raw Hex: {hex}] [{mnemonic}] {Direction} {{");
             
             try
             {

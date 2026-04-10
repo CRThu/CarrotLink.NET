@@ -1,4 +1,4 @@
-﻿using CarrotLink.Core.Devices.Configuration;
+using CarrotLink.Core.Devices.Configuration;
 using CarrotLink.Core.Devices.Interfaces;
 using CarrotLink.Core.Logging;
 using CarrotLink.Core.Protocols.Impl;
@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 namespace CarrotLink.Core.Session
 {
@@ -21,6 +22,10 @@ namespace CarrotLink.Core.Session
     /// </summary>
     public class DeviceSession : IDisposable
     {
+        // component
+        private readonly SemaphoreSlim _rpcLock = new(1, 1);
+        private TaskCompletionSource<IPacket>? _activeTcs;
+        private Func<IPacket, bool>? _packetMatcher;
         // component
         private IDevice _device;
         private IProtocol _protocol;
@@ -111,6 +116,54 @@ namespace CarrotLink.Core.Session
         }
 
         public static DeviceSessionBuilder Create() => new DeviceSessionBuilder();
+
+        /// <summary>
+        /// 连接设备并初始化协议
+        /// </summary>
+        public async Task ConnectAndInitAsync()
+        {
+            _device.Connect();
+            if (_protocol != null)
+            {
+                await _protocol.InitializeAsync(this).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// RPC式交互：发送请求并挂起等待响应
+        /// </summary>
+        public async Task<T?> ExchangeAsync<T>(IPacket request, Func<IPacket, bool>? expectedResponseMatcher = null, int timeoutMs = 1000) where T : class, IPacket
+        {
+            await _rpcLock.WaitAsync().ConfigureAwait(false);
+
+            try
+            {
+                var tcs = new TaskCompletionSource<IPacket>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _activeTcs = tcs;
+                _packetMatcher = expectedResponseMatcher ?? (p => p is T);
+
+                await WriteAsync(request).ConfigureAwait(false);
+                var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs)).ConfigureAwait(false);
+                
+                if (completedTask == tcs.Task)
+                {
+                    return (await tcs.Task.ConfigureAwait(false)) as T;
+                }
+                
+                // 超时日志，按照要求展示Raw Hex
+                string hexInfo = request.ToString() ?? "Unknown";
+                
+                OnError?.Invoke($"[RPC Timeout] 未能在 {timeoutMs}ms 内收到响应, Request: {hexInfo}", LogLevel.Error);
+                Console.WriteLine($"[RPC Timeout] 未能在 {timeoutMs}ms 内收到响应, Request: {hexInfo}");
+                return null;
+            }
+            finally
+            {
+                _activeTcs = null;
+                _packetMatcher = null;
+                _rpcLock.Release();
+            }
+        }
 
         /// <summary>
         /// 发送方法
@@ -214,6 +267,17 @@ namespace CarrotLink.Core.Session
                 {
                     reader.AdvanceTo(buffer.Start, buffer.End);
                     return null;
+                }
+
+                if (_activeTcs != null && (_packetMatcher == null || _packetMatcher(packet)))
+                {
+                    var activeTcs = _activeTcs;
+                    _activeTcs = null;
+                    _packetMatcher = null;
+                    activeTcs.TrySetResult(packet);
+                    
+                    reader.AdvanceTo(buffer.Start);
+                    return packet;
                 }
 
                 // save to storage
@@ -409,6 +473,10 @@ namespace CarrotLink.Core.Session
         {
             try
             {
+                _activeTcs?.TrySetCanceled();
+                _activeTcs = null;
+                _rpcLock.Dispose();
+                
                 _pipe.Writer.Complete();
                 _pipe.Reader.Complete();
                 _cts.Cancel();

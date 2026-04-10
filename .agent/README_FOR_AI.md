@@ -17,7 +17,7 @@ CarrotLink.NET 是一个基于 .NET 8 的高性能、插件化设备通信框架
 
 ### 2.2 协议逻辑层 (Protocol Layer)
 *   **核心接口**: `IProtocol` (`CarrotLink.Core.Protocols.Impl`)
-*   **职责**: 负责字节流 (`ReadOnlySequence<byte>`) 与结构化数据包 (`IPacket`) 的相互转换。
+*   **职责**: 负责字节流 (`ReadOnlySequence<byte>`) 与结构化数据包 (`IPacket`) 的相互转换。同时框架提供了 `InitializeAsync` 作为标准生命周期钩子，允许协议在 `DeviceSession` 建立后执行自定义的握手、芯片配置或自检逻辑。
 *   **关键实现**:
     *   `CarrotAsciiProtocol`: 处理 `CARROT_RPC.md` 定义的 ASCII 格式（[DATA], [REG] 等）。
     *   `CarrotBinaryProtocol`: 高速二进制包格式（DATA_266 等）。
@@ -115,6 +115,10 @@ CarrotLink.NET 是一个基于 .NET 8 的高性能、插件化设备通信框架
     *   新增依赖必须使用 `uv add <package>`。
     *   禁止直接调用 `python` 或 `pip`。
 
+### 8.4 通信日志可见性规范
+*   **原始数据核心地位**: 在所有解析报文展示（例如 `ToString`）或写入日志时，必须优先保留最原始的串行化十六进制流（Raw Hex）。
+*   **底层追踪溯源**: 对于像 NFC/UART 等容易出现位错误的物理层协议，保障原始指令与响应的可见性是首要目标。业务级的语意化解释 (如字段切分) 只能作为辅助，不得掩盖底层协议交互的详细载荷。
+
 ## 9. 核心工具箱 (Utility Toolbox)
 AI 执行者在编写代码前应优先复用以下工具类：
 *   **`SpanEx`**: 提供高效的十六进制和浮点数 Span 解析。
@@ -172,8 +176,9 @@ AI 执行者在编写代码前应优先复用以下工具类：
         *   **发送端**: 识别助记符。系统指令（`PN532.`前缀）直接封装；卡片事务自动叠加 `InDataExchange` (0x40) 套壳。
         *   **接收端**: 核销 PN532 链路头。提取响应载荷后，利用记忆的上下文定义进行“按字段切分”展示，实现自解释。
     *   **通用注册表 (`NfcCommandRegistry`)**: 专注卡片层（Layer 7）业务指令。支持补丁式更新（后加载覆盖前者），提供高性能、零分配的字段解析接口。
-    *   **自解释报文模型 (`NfcPacket`)**: 整合 `Direction` (Request/Response) 与 `Definition` 指针。其 `ToString()` 根据包方向自动适配展示布局。
-    *   **高层交互扩展**: `SendNfcAsync` 提供“助记符 + 变长参数”接口，支持根据 JSON 定义自动按位填充十六进制参数，并保留 `HEX` 逃逸调试模式。
+    *   **请求-响应生命周期 (Request-Response Life Cycle)**: 提供了 RPC 风格的高级封装 `ConnectAndInitAsync` + `ExchangeAsync`。核心 `DeviceSession` 内部升级为基于 `SemaphoreSlim` 的**单一事务管理器**（针对半双工硬件），确保同一时间只有一个 RPC 事务活跃，并能自动处理响应匹配与超时。此机制彻底消除了底层事件竞态，明确 `ExchangeAsync` 是强请求-响应类协议交互的**唯一推荐方式**（禁止业务层直接操作 `OnPacketReceived` 进行协议配对）。
+    *   **自解释报文模型 (`NfcPacket`)**: 整合 `Direction` (Request/Response) 与 `Definition` 指针。其 `ToString()` 根据包方向自动适配展示布局，始终强制前置保留 `Raw Hex` 原始交互报文以保证底层调试可见性。
+    *   **高层交互扩展**: `SendNfcAsync` 提供“助记符 + 变长参数”接口，支持根据 JSON 定义自动按位填充十六进制参数，并保留 `HEX` 逃逸调试模式。（当前全面倾向于使用 `ExchangeAsync` 模式同步收发）。
 *   **元数据模型 (`CarrotLink.NFC.Models`)**:
     *   **`NfcFrameDefinition`**: 单个定义涵盖完整事务（RequestFields + ResponseFields）。
     *   **`NfcPacket`**: 状态化报文容器，支持上下文关联。
