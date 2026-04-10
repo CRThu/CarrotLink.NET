@@ -17,8 +17,8 @@ namespace CarrotLink.Core.Discovery.Searchers
         public DriverType SupportedType => DriverType.NiVisa;
         public NiVisaSearcher()
         {
-            Assembly.LoadFrom("NationalInstruments.Common.dll");
-            Assembly.LoadFrom("NationalInstruments.VisaNS.dll");
+            //Assembly.LoadFrom("NationalInstruments.Common.dll");
+            //Assembly.LoadFrom("NationalInstruments.VisaNS.dll");
         }
 
         public IEnumerable<DeviceInfo> Search()
