@@ -78,7 +78,7 @@ class Program
             {
                 // 发送 InListPassiveTarget 指令 (1个目标, 106kbps TypeA)
                 // 0x4A 0x01 0x00
-                var req = new NfcPacket { Mnemonic = "PN532.InListPassiveTarget", Payload = new byte[] { 0x01, 0x00 }, Direction = NfcDirection.Request };
+                var req = new NfcPacket { Action = NfcAction.ListPassiveTarget, Payload = new byte[] { 0x01, 0x00 }, Direction = NfcDirection.Request };
                 var response = await session.ExchangeAsync<NfcPacket>(req, null, 1000).ConfigureAwait(false);
 
                 if (response != null && response.IsSuccess && response.Payload != null && response.Payload.Length > 0)

@@ -29,7 +29,7 @@ public class Pn532HsuProtocol : IProtocol
 
     public NfcCommandRegistry Registry => _registry;
     private readonly NfcCommandRegistry _registry;
-    private NfcFrameDefinition? _lastRequestDefinition;
+    private NfcAction _lastAction = NfcAction.Raw_Physical_Bypass;
     private readonly object _contextLock = new();
 
     public Pn532HsuProtocol(NfcCommandRegistry registry)
@@ -39,20 +39,20 @@ public class Pn532HsuProtocol : IProtocol
 
     public async Task InitializeAsync(DeviceSession session)
     {
-        // 1. 唤醒 (Wakeup) - 直接向驱动发送原生比特流，避免协议帧包装
-        byte[] wakeupArgs = { 0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        await session.Device.WriteAsync(wakeupArgs).ConfigureAwait(false);
-        await Task.Delay(50).ConfigureAwait(false);
-
-        // 2. 获取版本 (GetFirmware) - 支持直接载荷比特流（首字节 0xD4 表示主机下发）
-        var fwReq = new NfcPacket { Payload = new byte[] { 0xD4, 0x02 }, Direction = NfcDirection.Request, Mnemonic = "GetFirmwareVersion" };
-        if (await session.ExchangeAsync<NfcPacket>(fwReq, null, 1000) is not { IsSuccess: true })
+        // 1. 唤醒并获取固件版本 - 内部构建 HSU 专属物理帧
+        List<byte> wakeupSeq = new List<byte> { 0x55, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        wakeupSeq.AddRange(BuildFrame(new byte[] { 0xD4, 0x02 })); // GetFirmwareVersion
+        var wakeupReq = new NfcPacket { Action = NfcAction.Raw_Physical_Bypass, Direction = NfcDirection.Request, Payload = wakeupSeq.ToArray() };
+        
+        if (await session.ExchangeAsync<NfcPacket>(wakeupReq, null, 1000) is not { IsSuccess: true })
         {
-            throw new DriverErrorException("握手超时或失败: GetFirmwareVersion");
+            throw new DriverErrorException("握手超时或失败: Wakeup / GetFirmwareVersion");
         }
 
-        // 3. 配置 (SAMConfiguration) - 包含额外参数
-        var samReq = new NfcPacket { Payload = new byte[] { 0xD4, 0x14, 0x01, 0x14, 0x01 }, Direction = NfcDirection.Request, Mnemonic = "SAMConfiguration" };
+        // 2. 配置 (SAMConfiguration) - 内部构建物理帧
+        var samPayload = BuildFrame(new byte[] { 0xD4, 0x14, 0x01, 0x14, 0x01 });
+        var samReq = new NfcPacket { Action = NfcAction.Raw_Physical_Bypass, Direction = NfcDirection.Request, Payload = samPayload };
+        
         if (await session.ExchangeAsync<NfcPacket>(samReq, null, 1000) is not { IsSuccess: true })
         {
             throw new DriverErrorException("握手超时或失败: SAMConfiguration");
@@ -66,50 +66,48 @@ public class Pn532HsuProtocol : IProtocol
     {
         if (packet is not NfcPacket nfcPacket) return Array.Empty<byte>();
 
-        List<byte> body = new List<byte> { 0xD4 }; // TFI: Host to PN532
-        
-        var def = nfcPacket.Definition;
-        if (def == null && !string.IsNullOrEmpty(nfcPacket.Mnemonic))
+        // 上下文记忆：记录请求动作，以便解析响应
+        lock (_contextLock)
         {
-            def = _registry.TryGetByMnemonic(nfcPacket.Mnemonic);
+            _lastAction = nfcPacket.Action;
         }
 
-        if (def != null)
-        {
-            // 上下文记忆：记录请求定义，以便解析响应
-            lock (_contextLock)
-            {
-                _lastRequestDefinition = def;
-            }
+        List<byte> body = new List<byte>();
 
-            if (def.IsSystemCommand || def.Mnemonic.StartsWith("PN532.", StringComparison.OrdinalIgnoreCase))
-            {
-                // 系统指令：直接封装 OpCode
-                body.Add(def.OpCode);
-            }
-            else
-            {
-                // 卡片事务：自动套壳 InDataExchange (0x40) + Tg (0x01)
-                body.Add(0x40);
-                body.Add(0x01);
-                body.Add(def.OpCode);
-            }
-        }
-        else if (nfcPacket.Payload != null)
+        // 指令注释：依据 14443 抽象动作在底层自动打包符合 PN532 的物理帧
+        switch (nfcPacket.Action)
         {
-            // HEX 逃逸逻辑：直接发送原始载荷
-            body.Clear();
-            body.AddRange(nfcPacket.Payload);
-            return BuildFrame(body.ToArray());
-        }
+            case NfcAction.ListPassiveTarget:
+                body.Add(0xD4); // TFI
+                body.Add(0x4A); // OpCode InListPassiveTarget
+                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
+                return BuildFrame(body.ToArray());
 
-        // 添加参数载荷
-        if (nfcPacket.Payload != null)
-        {
-            body.AddRange(nfcPacket.Payload);
-        }
+            case NfcAction.GetAtqa:
+            case NfcAction.GetSak:
+            case NfcAction.GetUid:
+                // 可以映射到相应的卡面请求或其他高级封装，为了保持示例简化暂时抛到底部
+                goto default;
 
-        return BuildFrame(body.ToArray());
+            case NfcAction.Card_CommunicateThru:
+                // 卡片透传：自动追加 TFI + 0x42 (InCommunicateThru) + TargetID
+                body.Add(0xD4);
+                body.Add(0x42); 
+                // 仅传递 0x42 等同于 0x40 透传，但对于纯不带奇偶校验或特定比特率的通信极为重要
+                body.Add(0x01); // 默认 TargetID
+                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
+                return BuildFrame(body.ToArray());
+
+            case NfcAction.Raw_Physical_Bypass:
+                // 物理透传：直接放行 Payload，不加任何封装
+                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
+                return body.ToArray();
+
+            default:
+                // 默认进行基础加框 (可按需细化更多 14443 动词)
+                if (nfcPacket.Payload != null) body.AddRange(nfcPacket.Payload);
+                return BuildFrame(body.ToArray());
+        }
     }
 
     public bool TryDecode(ref ReadOnlySequence<byte> buffer, out IPacket? packet)
@@ -151,67 +149,48 @@ public class Pn532HsuProtocol : IProtocol
             byte chipOpCode = fullData.Length > 1 ? fullData[1] : (byte)0;
 
             // 4. 链路层适配与上下文解析
-            NfcFrameDefinition? contextDef;
+            NfcAction contextAction;
             lock (_contextLock)
             {
-                contextDef = _lastRequestDefinition;
-                _lastRequestDefinition = null; // 触发解析后立即核销
+                contextAction = _lastAction;
+                // 注意：由于没有特定的 Definition 绑定了，我们可以不核销，保持最后的会话记录应对重试或迟到的响应
+                // 极简实现下 _lastAction 是安全的
             }
 
-            if (chipOpCode == 0x41) // InDataExchange Response
+            if (chipOpCode == 0x41 || chipOpCode == 0x43) // InDataExchange / InCommunicateThru Response
             {
-                // 剥离芯片壳：D5 41 [Status] ...
+                // 剥离芯片壳：D5 41/43 [Status] ...
                 byte status = fullData.Length > 2 ? fullData[2] : (byte)0xFF;
                 
-                // 指令注释：提取纯净的卡片载荷 (跳过 D5 41 Status)
+                // 指令注释：提取纯净的卡片载荷 (跳过 D5 41/43 Status)
                 var cardPayload = new ReadOnlyMemory<byte>(fullData).Slice(3);
                 
-                var packetResult = new NfcPacket
+                packet = new NfcPacket
                 {
                     IsSuccess = status == 0,
-                    Definition = contextDef,
                     Direction = NfcDirection.Response,
+                    Action = contextAction,
                     Payload = cardPayload.ToArray()
                 };
-
-                // 使用上下文定义进行自解释解析
-                if (contextDef != null)
-                {
-                    packetResult.Descriptors.AddRange(_registry.Interpret(contextDef, NfcDirection.Response, cardPayload));
-                }
-
-                packet = packetResult;
             }
             else
             {
                 // 芯片系统指令响应 (D5 [OpCode+1] Payload)
                 var payload = new ReadOnlyMemory<byte>(fullData).Slice(2);
                 
-                var packetResult = new NfcPacket
+                packet = new NfcPacket
                 {
-                    IsSuccess = true,
-                    Definition = contextDef,
+                    IsSuccess = true, // 简化：默认响应为真
                     Direction = NfcDirection.Response,
+                    Action = contextAction,
                     Payload = payload.ToArray()
                 };
-
-                if (contextDef != null)
-                {
-                    packetResult.Descriptors.AddRange(_registry.Interpret(contextDef, NfcDirection.Response, payload));
-                }
-
-                packet = packetResult;
             }
 
             return true;
         }
         catch
         {
-            // 状态清理：异常时强制清理上下文
-            lock (_contextLock)
-            {
-                _lastRequestDefinition = null;
-            }
             throw;
         }
     }

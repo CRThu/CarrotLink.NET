@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using CarrotLink.Core.Utility;
 
 namespace CarrotLink.Core.Session
 {
@@ -181,6 +182,8 @@ namespace CarrotLink.Core.Session
             try
             {
                 var pktBytes = _protocol.Encode(packet);
+                // 强制打印发出的每一个原始字节
+                Console.WriteLine($"[TX RAW] {pktBytes.ToArray().BytesToHexString()}");
                 await _device.WriteAsync(pktBytes, _cts.Token).ConfigureAwait(false);
                 Interlocked.Add(ref _totalWriteBytes, pktBytes.Length);
 
@@ -320,6 +323,8 @@ namespace CarrotLink.Core.Session
                 var bufmem = buffer.AsMemory(0, bytesRead);
                 if (bytesRead > 0)
                 {
+                    // 强制打印收到的每一个原始字节
+                    Console.WriteLine($"[RX RAW] {buffer.AsSpan(0, bytesRead).ToArray().BytesToHexString()}");
                     var result = await writer.WriteAsync(bufmem, cancellationToken).ConfigureAwait(false);
 
                     Interlocked.Add(ref _totalReadBytes, bytesRead);

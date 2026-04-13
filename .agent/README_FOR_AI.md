@@ -172,16 +172,18 @@ AI 执行者在编写代码前应优先复用以下工具类：
 *   **定位**: 提供硬件无关的 NFC 通信抽象模型，实现卡片逻辑（Layer 7）与芯片协议（Layer 2）的深度解耦。
 *   **核心架构要素**:
     *   **动态 JSON 指令系统**: 通过 `.dev/nfc/` 目录递归扫描 JSON 文件。指令定义 (`NfcFrameDefinition`) 合并了请求与响应字段描述，建立“助记符 -> 事务”的映射。
-    *   **上下文感知协议层 (`Pn532HsuProtocol`)**: 核心创新点。通过 `_lastRequestDefinition` 维护请求上下文，解决非标卡响应帧缺少 OpCode 的识别难题。
-        *   **发送端**: 识别助记符。系统指令（`PN532.`前缀）直接封装；卡片事务自动叠加 `InDataExchange` (0x40) 套壳。
-        *   **接收端**: 核销 PN532 链路头。提取响应载荷后，利用记忆的上下文定义进行“按字段切分”展示，实现自解释。
+    *   **上下文感知协议层 (`Pn532HsuProtocol`)**: 核心创新点。通过 `_lastAction` 维护请求动作的上下文，解决非标卡响应帧缺少 OpCode 的识别难题。
+        *   **抽象动作驱动 (`NfcAction`)**: `NfcAction` 仅记录 14443 高层通用协议（如 `Wakeup`, `ListPassiveTarget`, `Card_CommunicateThru`），**严格屏蔽物理芯片强相关指令**（如不暴漏 PN532_GetFirmware），彻底实现业务逻辑与硬件脱钩。
+        *   **内聚的生命周期**: 针对芯片专属行为（如 `GetFirmware`, `SAMConfiguration`），由协议的 `InitializeAsync` 自主构建物理帧并以 `Raw_Physical_Bypass` 透传进行内部流转调用，不对外泄露专属模型。
+        *   **接收端**: 核销 PN532 链路头。提取响应载荷后，利用记忆的 `Action` 还原响应上下文。
     *   **通用注册表 (`NfcCommandRegistry`)**: 专注卡片层（Layer 7）业务指令。支持补丁式更新（后加载覆盖前者），提供高性能、零分配的字段解析接口。
-    *   **请求-响应生命周期 (Request-Response Life Cycle)**: 提供了 RPC 风格的高级封装 `ConnectAndInitAsync` + `ExchangeAsync`。核心 `DeviceSession` 内部升级为基于 `SemaphoreSlim` 的**单一事务管理器**（针对半双工硬件），确保同一时间只有一个 RPC 事务活跃，并能自动处理响应匹配与超时。此机制彻底消除了底层事件竞态，明确 `ExchangeAsync` 是强请求-响应类协议交互的**唯一推荐方式**（禁止业务层直接操作 `OnPacketReceived` 进行协议配对）。
-    *   **自解释报文模型 (`NfcPacket`)**: 整合 `Direction` (Request/Response) 与 `Definition` 指针。其 `ToString()` 根据包方向自动适配展示布局，始终强制前置保留 `Raw Hex` 原始交互报文以保证底层调试可见性。
-    *   **高层交互扩展**: `SendNfcAsync` 提供“助记符 + 变长参数”接口，支持根据 JSON 定义自动按位填充十六进制参数，并保留 `HEX` 逃逸调试模式。（当前全面倾向于使用 `ExchangeAsync` 模式同步收发）。
+    *   **请求-响应生命周期 (Request-Response Life Cycle)**: 提供了 RPC 风格的高级封装 `ConnectAndInitAsync` + `ExchangeAsync`。核心 `DeviceSession` 内部升级为基于 `SemaphoreSlim` 的**单一事务管理器**（针对半双工硬件），确保同一时间只有一个 RPC 事务活跃，并能自动处理响应匹配与超时**且在满足时优先拦截核销、严禁抛给全局事件以防竞态**。此机制明确 `ExchangeAsync` 是强请求-响应类协议交互的**唯一推荐方式**。
+    *   **自解释报文模型 (`NfcPacket`)**: 已彻底重构为**纯净的 DTO 数据载体** (Record)。仅包含 `Direction`、`Action`、`Payload` (纯逻辑参数) 和 `IsSuccess`。重写 `ToString()` 返回最基础的 Hex 供底层追踪。
+    *   **高层交互扩展**: `SendNfcAsync` 提供“助记符 + 变长参数”接口，支持根据 JSON 定义自动按位填充十六进制参数，并保留 `HEX` 逃逸调试模式。
+    *   **视图分离设计 (`NfcFormatter`)**: 当需要基于业务字典现场可视化解释时，通过静态工具 `NfcFormatter.Format(NfcPacket, registry)` 完成展示切片构建，保证 `Models` 层绝对纯净无逻辑依赖。
 *   **元数据模型 (`CarrotLink.NFC.Models`)**:
     *   **`NfcFrameDefinition`**: 单个定义涵盖完整事务（RequestFields + ResponseFields）。
-    *   **`NfcPacket`**: 状态化报文容器，支持上下文关联。
+    *   **`NfcPacket`**: 极简 DTO，状态化报文容器，解耦了解析细节。
 *   **目录结构**:
     *   `Models/`: 存放帧定义与报文 Record。
     *   `Protocols/`: 存放核心注册表与链路适配协议。

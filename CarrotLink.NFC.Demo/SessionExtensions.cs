@@ -12,14 +12,11 @@ public static class SessionExtensions
 {
     private static readonly ConcurrentDictionary<DeviceSession, TaskCompletionSource<NfcPacket>> _pendingRequests = new();
 
-    /// <summary>
-    /// 发送 NFC 指令（单向）。
-    /// </summary>
-    public static async Task SendNfcAsync(this DeviceSession session, string mnemonic, byte[]? payload = null)
+    public static async Task SendNfcAsync(this DeviceSession session, NfcAction action, byte[]? payload = null)
     {
         var packet = new NfcPacket
         {
-            Mnemonic = mnemonic,
+            Action = action,
             Payload = payload,
             Direction = NfcDirection.Request
         };
@@ -30,11 +27,11 @@ public static class SessionExtensions
     /// 发送 NFC 指令并等待响应包（同步请求模式）。
     /// </summary>
     /// <param name="session">当前会话</param>
-    /// <param name="mnemonic">助记符（如 PN532.GetFirmwareVersion）</param>
+    /// <param name="action">行为枚举（如 NfcAction.Pn532_GetFirmware）</param>
     /// <param name="payload">参数载荷</param>
     /// <param name="timeoutMs">超时时间(ms)</param>
     /// <returns>响应包，超时则返回 null</returns>
-    public static async Task<NfcPacket?> SendNfcWithResponseAsync(this DeviceSession session, string mnemonic, byte[]? payload = null, int timeoutMs = 2000)
+    public static async Task<NfcPacket?> SendNfcWithResponseAsync(this DeviceSession session, NfcAction action, byte[]? payload = null, int timeoutMs = 2000)
     {
         var tcs = new TaskCompletionSource<NfcPacket>(TaskCreationOptions.RunContinuationsAsynchronously);
         
@@ -54,7 +51,7 @@ public static class SessionExtensions
 
         try
         {
-            await session.SendNfcAsync(mnemonic, payload);
+            await session.SendNfcAsync(action, payload);
             
             var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
             if (completedTask == tcs.Task)

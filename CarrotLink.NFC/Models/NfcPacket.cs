@@ -1,85 +1,15 @@
 using CarrotLink.Core.Protocols.Models;
 using CarrotLink.Core.Utility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace CarrotLink.NFC.Models;
 
 /// <summary>
 /// NFC 结构化报文模型，支持动态自解释展示。
+/// 作为极简数据模型，仅保留方向、语义动作、逻辑参数，彻底剥离业务解析逻辑。
 /// </summary>
 public record NfcPacket : ICommandPacket
 {
     public PacketType PacketType => PacketType.Command;
-
-    /// <summary>
-    /// 自解释指令描述。
-    /// 逻辑：根据 Direction 选择 RequestFields 或 ResponseFields 切分 Payload 展示字段。
-    /// </summary>
-    public string Command
-    {
-        get
-        {
-            var mnemonic = Definition?.Mnemonic ?? (string.IsNullOrEmpty(Mnemonic) ? "Unknown" : Mnemonic);
-            var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
-            
-            if (Definition == null || Payload == null || Payload.Length == 0)
-            {
-                return $"[Raw Hex: {hex}] [{mnemonic}] {Direction}".Trim();
-            }
-
-            // 根据方向选择字段定义
-            var fields = Direction == NfcDirection.Request ? Definition.RequestFields : Definition.ResponseFields;
-            if (fields == null || fields.Count == 0)
-            {
-                return $"[Raw Hex: {hex}] [{mnemonic}] {Direction}";
-            }
-
-            // 根据 Definition 切片展示
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"[Raw Hex: {hex}] [{mnemonic}] {Direction} {{");
-            
-            try
-            {
-                int offset = 0;
-                var byteSpan = Payload.AsSpan();
-                
-                for (int i = 0; i < fields.Count; i++)
-                {
-                    var field = fields[i];
-                    if (offset >= byteSpan.Length) break;
-
-                    // 指令注释：处理变长字段（Length = -1），它会消耗剩余所有载荷。
-                    int len = field.Length == -1 ? byteSpan.Length - offset : field.Length;
-                    if (offset + len > byteSpan.Length) len = byteSpan.Length - offset;
-
-                    var segment = byteSpan.Slice(offset, len);
-                    sb.Append($"{field.Name}: {segment.ToArray().BytesToHexString()}");
-                    
-                    if (i < fields.Count - 1 && offset + len < byteSpan.Length)
-                        sb.Append(", ");
-
-                    offset += len;
-                }
-
-                // 处理剩余未知数据
-                if (offset < byteSpan.Length)
-                {
-                    if (sb.Length > mnemonic.Length + 4) sb.Append(", ");
-                    sb.Append($"Unknown: {byteSpan.Slice(offset).ToArray().BytesToHexString()}");
-                }
-            }
-            catch
-            {
-                sb.Append($"Error: {Payload.BytesToHexString()}");
-            }
-
-            sb.Append("}");
-            return sb.ToString();
-        }
-    }
 
     /// <summary>
     /// 指令方向 (请求/响应)。
@@ -87,34 +17,28 @@ public record NfcPacket : ICommandPacket
     public NfcDirection Direction { get; init; }
 
     /// <summary>
-    /// 语义化动作枚举（保留兼容）。
+    /// 语义化动作枚举。
     /// </summary>
     public NfcAction Action { get; init; }
 
     /// <summary>
-    /// 助记符。
+    /// 指令注释（满足 ICommandPacket 接口，可直接映射为可视化的形式或空）
     /// </summary>
-    public string Mnemonic { get; init; } = string.Empty;
+    public string Command => ToString();
 
     /// <summary>
-    /// 当前报文绑定的动态定义。
-    /// </summary>
-    public NfcFrameDefinition? Definition { get; init; }
-
-    /// <summary>
-    /// 报文原始载荷。
+    /// 报文纯逻辑载荷（不包含物理帧头和 OpCode 的纯参数）。
     /// </summary>
     public byte[]? Payload { get; init; }
-
-    /// <summary>
-    /// 字段描述符列表（用于逻辑访问，可由定义生成）。
-    /// </summary>
-    public List<NfcFieldDescriptor> Descriptors { get; init; } = new();
 
     /// <summary>
     /// 业务层逻辑成功标志。
     /// </summary>
     public bool IsSuccess { get; init; }
 
-    public override string ToString() => Command;
+    public override string ToString()
+    {
+        var hex = Payload != null ? Payload.BytesToHexString() : string.Empty;
+        return $"[Raw Hex: {hex}] {Direction} {Action}".Trim();
+    }
 }

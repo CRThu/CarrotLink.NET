@@ -37,7 +37,7 @@ public static class NfcSessionExtensions
         {
             var rawHex = cmdLine.Substring(4);
             var payload = rawHex.HexStringToBytes();
-            await session.WriteAsync(new NfcPacket { Direction = NfcDirection.Request, Payload = payload });
+            await session.WriteAsync(new NfcPacket { Action = NfcAction.Raw_Physical_Bypass, Direction = NfcDirection.Request, Payload = payload });
             return;
         }
 
@@ -103,9 +103,12 @@ public static class NfcSessionExtensions
             foreach (var p in hexParams) paramBytes.AddRange(p.HexStringToBytes());
         }
 
+        // 默认作为卡片透传，如果 registry 定义了具体的高级 Action 则可以进一步根据 json 的扩展解析
+        var action = NfcAction.Card_CommunicateThru;
+
         await session.WriteAsync(new NfcPacket
         {
-            Definition = definition,
+            Action = action,
             Direction = NfcDirection.Request,
             Payload = paramBytes.ToArray()
         });
